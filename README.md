@@ -1,4 +1,4 @@
-#SimpleShare
+# SimpleShare
 
 ## The privacy-first, infinite file transfer tool.
 **No signups, no servers, no limits. Just math.**
