@@ -45,7 +45,7 @@ No need for frameworks. No npm install. Just optimized web standards.
 # Option A: Use the Live Site
 https://szilard2011.github.io/SimpleShare/
 
-###& Option B: Run it locally
+### & Option B: Run it locally
 Because this is a client-side application, you are free to run it on your own computer!
 
 Clone this repo.
