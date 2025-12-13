@@ -33,7 +33,6 @@ const progressFill = document.getElementById('progress-fill');
 let currentMode = 'send';
 const CHUNK_SIZE = 190 * 1024 * 1024; 
 
-// Auto-Load Magic Link
 window.onload = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const magicCode = urlParams.get('code');
@@ -91,14 +90,12 @@ fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) startSlicingSequence(e.target.files[0]);
 });
 
-// --- ENCRYPTION LOGIC ---
 async function startSlicingSequence(file) {
     contentArea.style.display = 'none';
     processingView.style.display = 'flex';
     updateProgress("Analyzing file...", 5);
 
     let blobToProcess = file;
-    // Smart Compression (only if effective)
     if ('CompressionStream' in window && !['zip','mp4','jpg','png'].some(ext => file.type.includes(ext))) {
          try {
              chunkStatus.innerText = "Compressing data...";
@@ -154,7 +151,6 @@ async function startSlicingSequence(file) {
     }
 }
 
-// --- DECRYPTION LOGIC ---
 document.getElementById('connect-btn').addEventListener('click', () => {
     let val = document.getElementById('receive-code').value.trim();
     if(val.includes('code=')) val = val.split('code=')[1];
@@ -192,7 +188,6 @@ async function startReconstruction(code) {
         const total = mapJson.c.length;
         let completed = 0;
 
-        // Parallel Downloads (Batch 3)
         for (let i = 0; i < total; i += 3) {
             const batch = mapJson.c.slice(i, i + 3);
             await Promise.all(batch.map(async (atomID, idx) => {
@@ -229,7 +224,6 @@ async function startReconstruction(code) {
     }
 }
 
-// --- HELPERS ---
 async function deriveKeyFromPassword(password) {
     const enc = new TextEncoder();
     const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
@@ -254,7 +248,6 @@ function showDownloadScreen(blob, name, size) {
     document.getElementById('dl-filename').innerText = name;
     document.getElementById('dl-filesize').innerText = formatBytes(size);
     
-    // Heuristic Scan
     const ext = name.split('.').pop().toLowerCase();
     const badge = document.getElementById('scan-container');
     const dangerous = ['exe', 'bat', 'cmd', 'sh', 'vbs'];
@@ -325,7 +318,6 @@ function generateRandomString(length) {
     return result;
 }
 
-// Background Animation
 const canvas = document.getElementById('organic-canvas');
 const ctx = canvas.getContext('2d');
 let width, height, particles = [];
@@ -342,4 +334,5 @@ function animate() {
     particles.forEach(p => { p.update(); p.draw(); });
     requestAnimationFrame(animate);
 }
+
 animate();
