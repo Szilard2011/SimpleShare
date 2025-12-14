@@ -267,9 +267,90 @@ async function finishDownload(chunks, mapJson) {
          finalBlob = await new Response(stream).blob();
     }
 
+    updateProgress("Deep Scanning...", 98);
+    
+    const analysis = await advancedHeuristicScan(finalBlob, mapJson.n);
+    
     updateProgress("Done!", 100);
-    const safetyResult = heuristicScan(mapJson.n);
-    showDownloadScreen(finalBlob, mapJson.n, mapJson.s, safetyResult);
+    showDownloadScreen(finalBlob, mapJson.n, mapJson.s, analysis);
+}
+
+async function advancedHeuristicScan(blob, filename) {
+    const headerBuffer = await blob.slice(0, 32).arrayBuffer();
+    const view = new DataView(headerBuffer);
+    const hex = [];
+    for(let i=0; i<8; i++) hex.push(view.getUint8(i).toString(16).toUpperCase().padStart(2,'0'));
+    const magic = hex.join('');
+    
+    const ext = filename.split('.').pop().toLowerCase();
+    
+    let risk = 0;
+    let detections = [];
+    let detectedType = "Unknown Binary";
+
+    if (magic.startsWith('4D5A')) { detectedType = "Windows Executable (EXE/DLL)"; risk += 5; detections.push("Executable Code Header"); }
+    else if (magic.startsWith('7F454C46')) { detectedType = "Linux Executable (ELF)"; risk += 4; detections.push("ELF Binary Header"); }
+    else if (magic.startsWith('25504446')) { detectedType = "PDF Document"; risk += 0; }
+    else if (magic.startsWith('504B0304')) { detectedType = "ZIP Archive"; risk += 1; }
+    else if (magic.startsWith('89504E47')) { detectedType = "PNG Image"; risk += 0; }
+    else if (magic.startsWith('FFD8FF')) { detectedType = "JPG Image"; risk += 0; }
+    else if (magic.startsWith('52617221')) { detectedType = "RAR Archive"; risk += 1; }
+    else if (magic.startsWith('D0CF11E0')) { detectedType = "Legacy Office (OLE)"; risk += 2; detections.push("Legacy Macro Container"); }
+
+    if (detectedType.includes("Executable") && ['jpg', 'png', 'txt', 'pdf', 'mp4'].includes(ext)) {
+        risk += 5;
+        detections.push("CRITICAL: Extension Spoofing");
+    }
+
+    if (filename.match(/\.(txt|doc|pdf|jpg)\.(exe|scr|bat|com|js)$/i)) {
+        risk += 5;
+        detections.push("Double Extension Trick");
+    }
+
+    if (['bat', 'cmd', 'ps1', 'vbs', 'sh', 'js'].includes(ext)) {
+        risk += 4;
+        detectedType = "System Script";
+        detections.push("System Automation Script");
+    }
+
+    const entropy = await calculateEntropy(blob.slice(0, 1024));
+    
+    let safetyLevel = "safe";
+    let message = "No threats found.";
+    
+    if (risk >= 4) {
+        safetyLevel = "danger";
+        message = detections.join(", ");
+    } else if (risk >= 1 || entropy > 7.8) {
+        safetyLevel = "warning";
+        message = "Caution advised.";
+        if (entropy > 7.8) message += " High Entropy (Packed/Encrypted).";
+    }
+
+    return {
+        safe: safetyLevel === "safe",
+        level: safetyLevel,
+        title: safetyLevel === "safe" ? "Verified Safe" : (safetyLevel === "danger" ? "Threat Detected" : "Caution"),
+        desc: message,
+        type: detectedType,
+        entropy: entropy.toFixed(2)
+    };
+}
+
+async function calculateEntropy(blob) {
+    const buffer = await blob.arrayBuffer();
+    const data = new Uint8Array(buffer);
+    const frequencies = new Array(256).fill(0);
+    for (let i = 0; i < data.length; i++) frequencies[data[i]]++;
+    
+    let entropy = 0;
+    for (let i = 0; i < 256; i++) {
+        if (frequencies[i] > 0) {
+            const p = frequencies[i] / data.length;
+            entropy -= p * Math.log2(p);
+        }
+    }
+    return entropy;
 }
 
 async function deriveKeyFromPassword(password) {
@@ -290,20 +371,31 @@ async function uploadToCatbox(dataBuffer, iv) {
     } catch(e) { return null; }
 }
 
-function heuristicScan(filename) {
-    const ext = filename.split('.').pop().toLowerCase();
-    const dangerous = ['exe', 'bat', 'cmd', 'sh', 'vbs', 'msi'];
-    if(dangerous.includes(ext)) return { safe: false, desc: "Executable file detected." };
-    return { safe: true, desc: "No known threats found." };
-}
-
 function showDownloadScreen(blob, name, size, safety) {
     processingView.style.display = 'none';
     downloadView.style.display = 'block';
     document.getElementById('dl-filename').innerText = name;
     document.getElementById('dl-filesize').innerText = formatBytes(size);
-    document.getElementById('scan-desc').innerText = safety.desc;
-    if(!safety.safe) document.getElementById('scan-container').classList.add('warning');
+    
+    const card = document.getElementById('scan-container');
+    const icon = document.getElementById('scan-icon');
+    const title = document.getElementById('scan-title');
+    const desc = document.getElementById('scan-desc');
+    const metricEnt = document.getElementById('metric-entropy');
+    const metricType = document.getElementById('metric-type');
+    
+    document.getElementById('scan-metrics').style.display = 'flex';
+    
+    title.innerText = safety.title;
+    desc.innerText = safety.desc;
+    metricEnt.innerText = safety.entropy;
+    metricType.innerText = safety.type;
+    
+    card.className = "security-card " + safety.level;
+    
+    if(safety.level === 'safe') icon.innerText = "🛡️";
+    else if(safety.level === 'warning') icon.innerText = "⚠️";
+    else icon.innerText = "☣️";
 
     document.getElementById('final-download-btn').onclick = () => {
         const url = URL.createObjectURL(blob);
