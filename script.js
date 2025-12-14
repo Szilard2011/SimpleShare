@@ -338,7 +338,7 @@ async function uploadToBurnerBlob(dataBuffer, iv) {
     const formData = new FormData();
     formData.append('file', blob);
     try {
-        const res = await fetch('https://corsproxy.io/?https://file.io/?expires=1w', { method: 'POST', body: formData });
+        const res = await fetch('https://file.io/?expires=1w', { method: 'POST', body: formData });
         const json = await res.json();
         if(json.success) return json.key;
         return null;
@@ -384,7 +384,7 @@ async function startReconstruction(mapID, password, isBurn) {
         let mapRes;
         
         if(isBurn) {
-            mapRes = await fetch(`https://corsproxy.io/?https://file.io/${mapID}`);
+            mapRes = await fetch(`https://file.io/${mapID}`);
         } else {
             mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}`);
             if(!mapRes.ok) mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}.bin`);
