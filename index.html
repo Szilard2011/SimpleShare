@@ -5,7 +5,9 @@
     <meta name="google-site-verification" content="l0FBsyq23xxu-Uc5-Jhodl-1G1k3dYTuhU3dgNepwwI" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SimpleShare</title>
+    <title>SimpleShare - Unlimited, Encrypted, Forever Storage.</title>
+    <meta name="description" content="Send files of any size with the greatest encryption. No signup, no servers, forever storage.">
+    <meta name="robots" content="index, follow">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -37,10 +39,11 @@
                 <button class="mode-tab active" id="tab-file" onclick="switchInputMode('file')">File</button>
                 <button class="mode-tab" id="tab-text" onclick="switchInputMode('text')">Text</button>
             </div>
-            
-            <h1 id="main-title">Secure Upload</h1>
+
+            <div class="mode-badge" id="mode-badge">INFINITY MATRIX</div>
+            <h1 id="main-title">Neural Upload</h1>
             <p id="main-desc">
-                Encrypt and share files permanently. Unlimited size.
+                Securely send multiple files. Unlimited size. Permanent Storage.
             </p>
             
             <div id="upload-ui">
@@ -70,6 +73,9 @@
                     <input type="text" id="receive-code" class="code-input" placeholder="Paste Code / Link" autocomplete="off">
                     <button id="paste-btn" class="icon-btn">📋</button>
                     <button id="connect-btn" class="connect-btn">→</button>
+                </div>
+                <div id="password-prompt" style="display:none; margin-top: 15px;">
+                    <input type="password" id="decrypt-password" class="code-input" placeholder="Enter File Password">
                 </div>
             </div>
         </div>
@@ -165,12 +171,12 @@
             </div>
             <div class="modal-body">
                 <div class="info-block">
-                    <h3>🚀 High-Speed Engine</h3>
+                    <h3>🚀 High-Speed Matrix Engine</h3>
                     <p>Your file is split into encrypted chunks and uploaded simultaneously to maximize speed.</p>
                 </div>
                 <div class="info-block">
-                    <h3>🧠 Zero-Knowledge</h3>
-                    <p>Encryption keys are generated on your device. The code acts as both the map to find your data and the password to unlock it. No servers can see your data.</p>
+                    <h3>🧠 Zero-Knowledge Architecture</h3>
+                    <p>Encryption keys are generated on your device. No servers can see your data.</p>
                 </div>
             </div>
         </div>
