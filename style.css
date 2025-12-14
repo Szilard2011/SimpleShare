@@ -237,3 +237,30 @@ p { font-size: 1rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 
     position: relative;
     z-index: 50;
 }
+
+#text-mode-view {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+}
+
+.text-area-input {
+    flex: 1;
+    min-height: 50px;
+    height: 50px;
+    margin-bottom: 0;
+    resize: none;
+    padding: 12px;
+    overflow: hidden;
+}
+
+#send-text-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 0 20px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
