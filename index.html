@@ -6,8 +6,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SimpleShare</title>
-    <meta name="description" content="Secure, serverless file sharing.">
-    <meta name="robots" content="index, follow">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -34,9 +32,10 @@
     <main class="container">
         
         <div id="content-area" class="content-wrapper">
+            
             <div class="mode-tabs" id="input-mode-tabs">
-                <button class="mode-tab active" onclick="switchInputMode('file')">File</button>
-                <button class="mode-tab" onclick="switchInputMode('text')">Text</button>
+                <button class="mode-tab active" id="tab-file" onclick="setUploadMode('file')">File</button>
+                <button class="mode-tab" id="tab-text" onclick="setUploadMode('text')">Text</button>
             </div>
             
             <div id="upload-ui">
@@ -66,9 +65,6 @@
                     <input type="text" id="receive-code" class="code-input" placeholder="Paste Code / Link" autocomplete="off">
                     <button id="paste-btn" class="icon-btn">📋</button>
                     <button id="connect-btn" class="connect-btn">→</button>
-                </div>
-                <div id="password-prompt" style="display:none; margin-top: 15px;">
-                    <input type="password" id="decrypt-password" class="code-input" placeholder="Enter File Password">
                 </div>
             </div>
         </div>
@@ -190,8 +186,8 @@
 
     <div class="dock-container">
         <div class="dock">
-            <button class="dock-item active" data-mode="send" data-theme="green">Upload</button>
-            <button class="dock-item" data-mode="receive" data-theme="blue">Download</button>
+            <button class="dock-item active" id="dock-send" onclick="setMainMode('send')">Upload</button>
+            <button class="dock-item" id="dock-receive" onclick="setMainMode('receive')">Download</button>
         </div>
     </div>
 
