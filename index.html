@@ -73,11 +73,11 @@
                         <label class="checkbox-container">
                             <input type="checkbox" id="burn-toggle">
                             <span class="checkmark"></span>
-                            Self-Destruct (Burn Key after download)
+                            Self-Destruct (Link works only once)
                         </label>
                     </div>
                     <div class="option-row">
-                        <input type="password" id="custom-password" class="option-input" placeholder="Optional Password protection">
+                        <input type="password" id="custom-password" class="option-input" placeholder="Set Password (Optional)">
                     </div>
                 </div>
             </div>
@@ -87,9 +87,6 @@
                     <input type="text" id="receive-code" class="code-input" placeholder="Paste Code / Link" autocomplete="off">
                     <button id="paste-btn" class="icon-btn">📋</button>
                     <button id="connect-btn" class="connect-btn">→</button>
-                </div>
-                <div id="password-prompt" style="display:none; margin-top: 15px;">
-                    <input type="password" id="decrypt-password" class="code-input" placeholder="Enter File Password">
                 </div>
             </div>
         </div>
@@ -139,6 +136,7 @@
                 <p class="instruction">Scan to download on mobile</p>
             </div>
 
+            <p class="instruction" id="password-warning" style="display:none; color: #f59e0b;">⚠ Protected. You must share the password manually.</p>
             <button class="reset-main" onclick="location.reload()">Send More</button>
         </div>
 
@@ -162,6 +160,21 @@
 
     <div id="toast-container"></div>
 
+    <!-- PASS MODAL -->
+    <div id="password-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Password Required</h2>
+                <button class="close-btn" onclick="closePasswordModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:15px; color:#cbd5e1;">This file is encrypted. Enter the sender's password to unlock it.</p>
+                <input type="password" id="unlock-password" class="code-input" style="width:100%; border:1px solid var(--primary);" placeholder="Enter Password" autofocus>
+                <button class="primary-action-btn" id="unlock-btn">Unlock</button>
+            </div>
+        </div>
+    </div>
+
     <div id="about-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -171,11 +184,11 @@
             <div class="modal-body">
                 <div class="info-block">
                     <h3>🚀 Why is uploading slow?</h3>
-                    <p>Unlike normal websites, we don't just "upload" your file. Your browser is performing military-grade <strong>AES-256 encryption</strong> and <strong>GZIP compression</strong> in real-time. Then, it slices your file into pieces and sends them through a secure anonymous proxy to ensure no logs are kept. Security takes CPU power and time.</p>
+                    <p>Your browser is performing military-grade <strong>AES-256 encryption</strong> and <strong>GZIP compression</strong> in real-time. Then, it slices your file into pieces and sends them through a secure anonymous proxy. Security takes CPU power.</p>
                 </div>
                 <div class="info-block">
                     <h3>🧠 How does the technology work?</h3>
-                    <p>This is a <strong>Serverless Architecture</strong>. Your file is encrypted on your device using a key that only you have. It is then stored on a decentralized public ledger. The code acts as both the map to find your data and the password to unlock it.</p>
+                    <p>This is a <strong>Serverless Architecture</strong>. Your file is encrypted on your device. It is then stored on a decentralized public ledger. The code acts as both the map to find your data and the password to unlock it.</p>
                 </div>
             </div>
         </div>
