@@ -285,28 +285,39 @@ async function startSlicingSequence(file, name, type) {
     const mapIV = window.crypto.getRandomValues(new Uint8Array(12));
     const mapEncrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: mapIV }, derivedKey, new TextEncoder().encode(JSON.stringify(masterMap)));
     
-    let finalCode = "";
+    // UPLOAD MAP TO CATBOX (Always Permanent Storage for the Map Data itself)
+    const finalMapID = await uploadToCatbox(mapEncrypted, mapIV);
     
-    if(document.getElementById('burn-toggle').checked) {
-        chunkStatus.innerText = "Setting up Self-Destruct...";
-        const burnID = await uploadToBurnerBlob(mapEncrypted, mapIV);
-        if(burnID) finalCode = "BURN-" + burnID + "-" + password; 
-        else { alert("Burner upload failed"); location.reload(); return; }
-    } else {
-        const finalMapID = await uploadToCatbox(mapEncrypted, mapIV);
-        if(finalMapID) {
-            const cleanID = finalMapID.split('.')[0];
-            if(hasPassword) {
+    if(finalMapID) {
+        const cleanID = finalMapID.split('.')[0];
+        let finalCode = "";
+        
+        // CHECK IF BURN MODE
+        if(document.getElementById('burn-toggle').checked) {
+            chunkStatus.innerText = "Activating Self-Destruct...";
+            
+            // For Burn Mode: We store the "MapID + Password" in a Burn-On-Read service
+            // The Code becomes the ID for the Burn-On-Read service
+            
+            const secretPayload = `${cleanID}-${password}`;
+            const burnID = await createBurnLink(secretPayload);
+            
+            if(burnID) finalCode = "BURN-" + burnID;
+            else { alert("Burn service error"); location.reload(); return; }
+            
+        } else {
+            // STANDARD MODE
+            if (hasPassword) {
+                // If password set, Code = ID. User must communicate password separately.
                 finalCode = `${cleanID}`; 
                 document.getElementById('password-warning').style.display = 'block';
             } else {
+                // No password set, Code = ID-GeneratedPassword
                 finalCode = `${cleanID}-${password}`;
                 document.getElementById('password-warning').style.display = 'none';
             }
         }
-    }
-    
-    if(finalCode) {
+        
         saveHistory(name, finalCode);
         updateProgress("Done!", 100);
         fireConfetti();
@@ -333,16 +344,33 @@ async function uploadToCatbox(dataBuffer, iv) {
     } catch(e) { return null; }
 }
 
-async function uploadToBurnerBlob(dataBuffer, iv) {
-    const blob = new Blob([iv, dataBuffer], { type: 'application/octet-stream' });
-    const formData = new FormData();
-    formData.append('file', blob);
+async function createBurnLink(payloadData) {
+    // Using Password Pusher JSON API via Proxy
+    // 1 View, 1 Day expiration
+    const url = "https://corsproxy.io/?https://pwpush.com/p.json";
+    
+    const bodyData = {
+        password: {
+            payload: payloadData,
+            expire_after_views: 1,
+            expire_after_days: 1
+        }
+    };
+
     try {
-        const res = await fetch('https://file.io/?expires=1w', { method: 'POST', body: formData });
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bodyData)
+        });
+        
         const json = await res.json();
-        if(json.success) return json.key;
+        // pwpush returns { url_token: "..." }
+        if(json.url_token) return json.url_token;
         return null;
-    } catch(e) { return null; }
+    } catch(e) {
+        return null;
+    }
 }
 
 document.getElementById('connect-btn').addEventListener('click', () => {
@@ -353,12 +381,13 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 
 function checkCodeAndStart(val) {
     if(val.startsWith("BURN-")) {
-        const parts = val.split("-");
-        if(parts.length === 3) startReconstruction(parts[1], parts[2], true);
-        else alert("Invalid Burn Code");
+        const burnKey = val.split("BURN-")[1];
+        retrieveBurner(burnKey);
     } else if (val.includes("-")) {
+        // ID-PASS (Standard Auto)
         startReconstruction(val.split("-")[0], val.split("-")[1], false);
     } else {
+        // ID ONLY (Password Protected)
         passwordModal.classList.add('active');
         unlockBtn.onclick = () => {
             const pass = unlockInput.value.trim();
@@ -367,6 +396,35 @@ function checkCodeAndStart(val) {
                 startReconstruction(val, pass, false);
             }
         };
+    }
+}
+
+async function retrieveBurner(key) {
+    contentArea.style.display = 'none';
+    processingView.style.display = 'flex';
+    updateProgress("Accessing Burner Link...", 20);
+    
+    // Fetch from Password Pusher
+    try {
+        const url = `https://corsproxy.io/?https://pwpush.com/p/${key}.json`;
+        const res = await fetch(url);
+        if(!res.ok) throw new Error("Burned");
+        
+        const json = await res.json();
+        
+        // Check if expired/deleted
+        if(json.expired || json.deleted) throw new Error("Burned");
+        
+        const secret = json.payload; // This is "MapID-Password"
+        
+        const parts = secret.split("-");
+        if(parts.length !== 2) throw new Error("Corrupt");
+        
+        startReconstruction(parts[0], parts[1], true);
+        
+    } catch(err) {
+        showToast("Link has already been destroyed.");
+        setTimeout(() => location.reload(), 2500);
     }
 }
 
@@ -381,16 +439,9 @@ async function startReconstruction(mapID, password, isBurn) {
 
     try {
         const derivedKey = await deriveKeyFromPassword(password);
-        let mapRes;
-        
-        if(isBurn) {
-            mapRes = await fetch(`https://file.io/${mapID}`);
-        } else {
-            mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}`);
-            if(!mapRes.ok) mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}.bin`);
-        }
-        
-        if(!mapRes.ok) throw new Error("Map not found or burned.");
+        let mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}`);
+        if(!mapRes.ok) mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}.bin`);
+        if(!mapRes.ok) throw new Error("Map not found.");
         
         const mapBuffer = await mapRes.arrayBuffer();
         const iv = mapBuffer.slice(0, 12), data = mapBuffer.slice(12);
@@ -431,7 +482,7 @@ async function startReconstruction(mapID, password, isBurn) {
         });
 
     } catch (e) {
-        showToast("Decryption failed or Link Burned.");
+        showToast("Decryption failed. Wrong password?");
         setTimeout(() => location.reload(), 2000);
     }
 }
