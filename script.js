@@ -10,7 +10,7 @@ const modes = {
         title: "Get Files",
         desc: "Enter your secure code or paste the link to retrieve files.",
         badge: "RETRIEVE",
-        color: "#8b5cf6",
+        color: "#a855f7",
         type: "input" 
     }
 };
@@ -48,6 +48,7 @@ updateTheme('send');
 dockItems.forEach(item => {
     item.addEventListener('click', () => {
         const mode = item.dataset.mode;
+        if(mode === currentMode) return;
         dockItems.forEach(b => b.classList.remove('active'));
         item.classList.add('active');
         currentMode = mode;
@@ -98,7 +99,7 @@ async function startSlicingSequence(file) {
     let blobToProcess = file;
     if ('CompressionStream' in window && !['zip','mp4','jpg','png'].some(ext => file.type.includes(ext))) {
          try {
-             chunkStatus.innerText = "Compressing data...";
+             chunkStatus.innerText = "Compressing...";
              const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
              blobToProcess = await new Response(stream).blob();
          } catch(e) {}
@@ -108,38 +109,69 @@ async function startSlicingSequence(file) {
     const exportedKey = await window.crypto.subtle.exportKey("jwk", key);
 
     const totalChunks = Math.ceil(blobToProcess.size / CHUNK_SIZE);
-    const atomIDs = [];
+    const atomIDs = new Array(totalChunks);
     
-    for(let i = 0; i < totalChunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, blobToProcess.size);
-        const chunkBlob = blobToProcess.slice(start, end);
-        
-        updateProgress(`Uploading part ${i+1}/${totalChunks}...`, (i/totalChunks)*100);
-        chunkStatus.innerText = `Encrypting chunk ${i+1}...`;
+    let activeUploads = 0;
+    let nextChunkIndex = 0;
+    const MAX_CONCURRENCY = 6;
+    let completed = 0;
 
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
-        const chunkBuffer = await chunkBlob.arrayBuffer();
-        const encryptedChunk = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, chunkBuffer);
+    return new Promise((resolve, reject) => {
+        const next = async () => {
+            if (nextChunkIndex >= totalChunks) return;
+            
+            const i = nextChunkIndex++;
+            activeUploads++;
 
-        let id = null, attempts = 0;
-        while(id === null && attempts < 3) {
-             attempts++;
-             id = await uploadToCatbox(encryptedChunk, iv);
+            const start = i * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, blobToProcess.size);
+            const chunkBlob = blobToProcess.slice(start, end);
+            
+            updateProgress(`Uploading...`, (completed/totalChunks)*90);
+            chunkStatus.innerText = `Sending part ${i+1}/${totalChunks}`;
+
+            try {
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const chunkBuffer = await chunkBlob.arrayBuffer();
+                const encryptedChunk = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, chunkBuffer);
+
+                let id = null, attempts = 0;
+                while(id === null && attempts < 3) {
+                    attempts++;
+                    id = await uploadToCatbox(encryptedChunk, iv);
+                }
+                
+                if(!id) throw new Error("Upload Failed");
+                
+                atomIDs[i] = id;
+                completed++;
+                activeUploads--;
+
+                if (completed === totalChunks) {
+                    finishUpload(file, exportedKey, atomIDs, blobToProcess.size !== file.size);
+                } else {
+                    next();
+                }
+            } catch (err) {
+                alert("Network Error");
+                location.reload();
+            }
+        };
+
+        for (let i = 0; i < MAX_CONCURRENCY && i < totalChunks; i++) {
+            next();
         }
-        if(!id) { alert("Network error. Please try again."); location.reload(); return; }
-        atomIDs.push(id);
-    }
+    });
+}
 
-    updateProgress("Finishing...", 90);
+async function finishUpload(file, key, ids, compressed) {
+    updateProgress("Finalizing...", 95);
     
-    const masterMap = { n: file.name, t: file.type, s: file.size, k: exportedKey, c: atomIDs, z: (blobToProcess.size !== file.size) };
-    const mapString = JSON.stringify(masterMap);
-    
+    const masterMap = { n: file.name, t: file.type, s: file.size, k: key, c: ids, z: compressed };
     const password = generateRandomString(6);
     const derivedKey = await deriveKeyFromPassword(password);
     const mapIV = window.crypto.getRandomValues(new Uint8Array(12));
-    const mapEncrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: mapIV }, derivedKey, new TextEncoder().encode(mapString));
+    const mapEncrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: mapIV }, derivedKey, new TextEncoder().encode(JSON.stringify(masterMap)));
     
     const finalMapID = await uploadToCatbox(mapEncrypted, mapIV);
     
@@ -161,9 +193,7 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 async function startReconstruction(code) {
     const parts = code.split('-');
     if(parts.length !== 2) return alert("Invalid code format.");
-    
-    const mapID = parts[0];
-    const password = parts[1];
+    const [mapID, password] = parts;
     
     contentArea.style.display = 'none';
     processingView.style.display = 'flex';
@@ -177,8 +207,7 @@ async function startReconstruction(code) {
         if(!mapRes.ok) throw new Error("File not found.");
         
         const mapBuffer = await mapRes.arrayBuffer();
-        const iv = mapBuffer.slice(0, 12);
-        const data = mapBuffer.slice(12);
+        const iv = mapBuffer.slice(0, 12), data = mapBuffer.slice(12);
         
         const decryptedMapBuffer = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, derivedKey, data);
         const mapJson = JSON.parse(new TextDecoder().decode(decryptedMapBuffer));
@@ -187,87 +216,100 @@ async function startReconstruction(code) {
         const chunks = new Array(mapJson.c.length);
         const total = mapJson.c.length;
         let completed = 0;
+        
+        const MAX_DL = 6;
+        let activeDl = 0;
+        let nextDl = 0;
 
-        for (let i = 0; i < total; i += 3) {
-            const batch = mapJson.c.slice(i, i + 3);
-            await Promise.all(batch.map(async (atomID, idx) => {
-                const globalIdx = i + idx;
-                updateProgress(`Downloading parts...`, (completed/total)*90);
-                chunkStatus.innerText = `Fetching part ${globalIdx + 1} of ${total}`;
+        return new Promise((resolve) => {
+            const fetchNext = async () => {
+                if(nextDl >= total) return;
+                const i = nextDl++;
+                activeDl++;
                 
+                const atomID = mapJson.c[i];
+                updateProgress("Downloading...", (completed/total)*90);
+                chunkStatus.innerText = `Fetching part ${i+1}/${total}`;
+
                 const atomRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${atomID}`);
                 const atomBuffer = await atomRes.arrayBuffer();
-                const aIv = atomBuffer.slice(0, 12);
-                const aData = atomBuffer.slice(12);
-                chunks[globalIdx] = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: aIv }, atomKey, aData);
+                const aIv = atomBuffer.slice(0, 12), aData = atomBuffer.slice(12);
+                
+                chunks[i] = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: aIv }, atomKey, aData);
+                
                 completed++;
-            }));
-        }
+                activeDl--;
 
-        updateProgress("Assembling...", 95);
-        let finalBlob = new Blob(chunks);
-        
-        if(mapJson.z) {
-             chunkStatus.innerText = "Expanding data...";
-             const ds = new DecompressionStream('gzip');
-             const stream = finalBlob.stream().pipeThrough(ds);
-             finalBlob = await new Response(stream).blob();
-        }
+                if(completed === total) {
+                    finishDownload(chunks, mapJson);
+                } else {
+                    fetchNext();
+                }
+            };
 
-        updateProgress("Done!", 100);
-        showDownloadScreen(finalBlob, mapJson.n, mapJson.s);
+            for(let i=0; i<MAX_DL && i<total; i++) fetchNext();
+        });
 
     } catch (e) {
-        console.error(e);
-        alert("Could not retrieve file. Code might be wrong.");
+        alert("Download failed.");
         location.reload();
     }
+}
+
+async function finishDownload(chunks, mapJson) {
+    updateProgress("Assembling...", 95);
+    let finalBlob = new Blob(chunks);
+    
+    if(mapJson.z) {
+         chunkStatus.innerText = "Expanding data...";
+         const ds = new DecompressionStream('gzip');
+         const stream = finalBlob.stream().pipeThrough(ds);
+         finalBlob = await new Response(stream).blob();
+    }
+
+    updateProgress("Done!", 100);
+    const safetyResult = heuristicScan(mapJson.n);
+    showDownloadScreen(finalBlob, mapJson.n, mapJson.s, safetyResult);
 }
 
 async function deriveKeyFromPassword(password) {
     const enc = new TextEncoder();
     const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
-    return window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode("NeuralShareSalt"), iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+    return window.crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode("SimpleShareSalt"), iterations: 100000, hash: "SHA-256" }, keyMaterial, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
 }
 
 async function uploadToCatbox(dataBuffer, iv) {
-    const blobToSend = new Blob([iv, dataBuffer], { type: 'application/octet-stream' });
+    const blob = new Blob([iv, dataBuffer], { type: 'application/octet-stream' });
     const formData = new FormData();
     formData.append('reqtype', 'fileupload');
-    formData.append('fileToUpload', blobToSend, "data.bin");
+    formData.append('fileToUpload', blob, "data.bin");
     try {
-        const response = await fetch('https://corsproxy.io/?https://catbox.moe/user/api.php', { method: 'POST', body: formData });
-        const url = await response.text();
+        const res = await fetch('https://corsproxy.io/?https://catbox.moe/user/api.php', { method: 'POST', body: formData });
+        const url = await res.text();
         return url.split('/').pop(); 
     } catch(e) { return null; }
 }
 
-function showDownloadScreen(blob, name, size) {
+function heuristicScan(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const dangerous = ['exe', 'bat', 'cmd', 'sh', 'vbs', 'msi'];
+    if(dangerous.includes(ext)) return { safe: false, desc: "Executable file detected." };
+    return { safe: true, desc: "No known threats found." };
+}
+
+function showDownloadScreen(blob, name, size, safety) {
     processingView.style.display = 'none';
     downloadView.style.display = 'block';
     document.getElementById('dl-filename').innerText = name;
     document.getElementById('dl-filesize').innerText = formatBytes(size);
-    
-    const ext = name.split('.').pop().toLowerCase();
-    const badge = document.getElementById('scan-container');
-    const dangerous = ['exe', 'bat', 'cmd', 'sh', 'vbs'];
-    if(dangerous.includes(ext)) {
-        badge.className = "security-badge warning";
-        document.getElementById('scan-desc').innerText = "Caution: Executable File";
-        document.getElementById('scan-icon').innerText = "⚠️";
-    } else {
-        badge.className = "security-badge";
-        document.getElementById('scan-desc').innerText = "File looks safe";
-        document.getElementById('scan-icon').innerText = "🛡️";
-    }
+    document.getElementById('scan-desc').innerText = safety.desc;
+    if(!safety.safe) document.getElementById('scan-container').classList.add('warning');
 
     document.getElementById('final-download-btn').onclick = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
     };
 }
 
@@ -300,15 +342,14 @@ function switchResultMode(mode) {
 
 function copyToClipboard(elementId) {
     const text = document.getElementById(elementId).innerText;
-    navigator.clipboard.writeText(text);
-    alert("Copied to clipboard!");
+    navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard!"));
 }
 
-function formatBytes(bytes, decimals = 2) {
+function formatBytes(bytes, d = 2) {
     if (!bytes) return '0 Bytes';
     const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(d)) + ' ' + sizes[i];
 }
 
 function generateRandomString(length) {
@@ -324,7 +365,7 @@ let width, height, particles = [];
 function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
 window.addEventListener('resize', resize); resize();
 class Particle {
-    constructor() { this.x = Math.random() * width; this.y = Math.random() * height; this.vx = (Math.random()-0.5)*0.2; this.vy = (Math.random()-0.5)*0.2; this.size = Math.random()*3; }
+    constructor() { this.x = Math.random() * width; this.y = Math.random() * height; this.vx = (Math.random()-0.5)*0.2; this.vy = (Math.random()-0.5)*0.2; this.size = Math.random()*2; }
     update() { this.x += this.vx; this.y += this.vy; if(this.x<0||this.x>width)this.vx*=-1; if(this.y<0||this.y>height)this.vy*=-1; }
     draw() { ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); }
 }
@@ -334,5 +375,4 @@ function animate() {
     particles.forEach(p => { p.update(); p.draw(); });
     requestAnimationFrame(animate);
 }
-
 animate();
