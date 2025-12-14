@@ -24,22 +24,24 @@
             <div class="brand-icon">S</div>
             <span>SimpleShare</span>
         </div>
-        <div class="system-status">
-            <span id="hardware-label">Secure Connection</span>
-            <div class="status-indicator online"></div>
+        <div class="nav-right">
+            <div class="system-status">
+                <span id="hardware-label">Deep Scan Active</span>
+                <div class="status-indicator online"></div>
+            </div>
+            <button id="about-btn" class="nav-btn">About</button>
         </div>
     </nav>
 
     <main class="container">
         
         <div id="content-area" class="content-wrapper">
-            <div class="mode-badge" id="mode-badge">SECURE CLOUD</div>
+            <div class="mode-badge" id="mode-badge">PERMANENT STORAGE</div>
             <h1 id="main-title">Share Anything</h1>
             <p id="main-desc">
                 Upload files of any size. We compress, encrypt, and store them permanently for you.
             </p>
             
-            <!-- UPLOAD ZONE -->
             <div id="upload-ui">
                 <div class="drop-zone-indicator" onclick="document.getElementById('file-input').click()">
                     <input type="file" id="file-input" style="display: none;">
@@ -49,7 +51,6 @@
                 </div>
             </div>
 
-            <!-- DOWNLOAD ZONE -->
             <div id="transfer-ui" style="display: none;">
                 <div class="input-wrapper">
                     <input type="text" id="receive-code" class="code-input" placeholder="Paste your code or link..." autocomplete="off">
@@ -58,7 +59,6 @@
             </div>
         </div>
 
-        <!-- PROGRESS SCREEN -->
         <div id="processing-view" class="processing-wrapper">
             <div class="loader">
                 <svg class="circular" viewBox="25 25 50 50">
@@ -72,7 +72,6 @@
             </div>
         </div>
 
-        <!-- RESULT SCREEN -->
         <div id="result-view" class="result-wrapper">
             <div class="success-icon-large">✨</div>
             <h2>Ready to Share</h2>
@@ -82,7 +81,6 @@
                 <button class="toggle-btn" id="btn-show-link" onclick="switchResultMode('link')">Link</button>
             </div>
 
-            <!-- VIEW 1: CODE -->
             <div id="view-code" class="result-pane">
                 <div class="code-box" onclick="copyToClipboard('final-code')">
                     <span id="final-code">...</span>
@@ -90,7 +88,6 @@
                 </div>
             </div>
 
-            <!-- VIEW 2: LINK -->
             <div id="view-link" class="result-pane" style="display: none;">
                 <div class="link-box" onclick="copyToClipboard('final-link')">
                     <span id="final-link">...</span>
@@ -101,7 +98,6 @@
             <button class="reset-main" onclick="location.reload()">Send Another File</button>
         </div>
 
-        <!-- DOWNLOAD PREVIEW -->
         <div id="download-view" class="result-wrapper" style="display:none;">
             
             <div class="file-card">
@@ -112,9 +108,24 @@
                 </div>
             </div>
 
-            <div class="security-badge" id="scan-container">
-                <span class="icon" id="scan-icon">🛡️</span>
-                <span class="text" id="scan-desc">Verifying safety...</span>
+            <div class="security-card" id="scan-container">
+                <div class="scan-header">
+                    <span class="icon" id="scan-icon">🛡️</span>
+                    <span class="title" id="scan-title">Deep Analysis</span>
+                </div>
+                <div class="scan-body">
+                    <p id="scan-desc">Verifying binary integrity...</p>
+                    <div class="scan-metrics" id="scan-metrics" style="display:none;">
+                        <div class="metric">
+                            <span class="label">Entropy</span>
+                            <span class="value" id="metric-entropy">0.0</span>
+                        </div>
+                        <div class="metric">
+                            <span class="label">Type</span>
+                            <span class="value" id="metric-type">UNKNOWN</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <button id="final-download-btn" class="primary-action-btn">Save to Device</button>
@@ -122,6 +133,36 @@
         </div>
 
     </main>
+
+    <div id="about-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>How it works</h2>
+                <button class="close-btn" id="close-about">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-block">
+                    <h3>🚀 Why is uploading slow?</h3>
+                    <p>Unlike normal websites, we don't just "upload" your file. Your browser is performing military-grade <strong>AES-256 encryption</strong> and <strong>GZIP compression</strong> in real-time. Then, it slices your file into pieces and sends them through a secure anonymous proxy to ensure no logs are kept. Security takes CPU power and time.</p>
+                </div>
+                
+                <div class="info-block">
+                    <h3>🧠 How does the technology work?</h3>
+                    <p>This is a <strong>Serverless Architecture</strong>. Your file is encrypted on your device using a key that only you have. It is then stored on a decentralized public ledger. The 12-character code acts as both the map to find your data and the password to unlock it.</p>
+                </div>
+
+                <div class="info-block">
+                    <h3>🛡️ Is it truly secure?</h3>
+                    <p>Yes. Because the encryption happens <strong>Client-Side</strong> (on your computer), not even we can see what you are sending. If you lose the code, the file is mathematically impossible to recover.</p>
+                </div>
+
+                <div class="info-block">
+                    <h3>🦠 What is the Virus Scanner?</h3>
+                    <p>When you download a file, your browser inspects the binary headers (Magic Numbers) and entropy levels before saving it to your disk. It looks for hidden executable code inside images or documents.</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="dock-container">
         <div class="dock">
@@ -136,7 +177,4 @@
 
     <script src="script.js"></script>
 </body>
-
 </html>
-
-
