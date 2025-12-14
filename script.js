@@ -293,11 +293,7 @@ async function startSlicingSequence(file, name, type) {
         
         if(document.getElementById('burn-toggle').checked) {
             chunkStatus.innerText = "Setting up Self-Destruct...";
-            let payload = cleanID;
-            if(hasPassword) payload += "-LOCKED"; // Mark as locked
-            else payload += "-" + password; 
-            
-            const burnID = await createBurnLink(payload);
+            const burnID = await uploadToBurner(cleanID, password);
             if(burnID) finalCode = "BURN-" + burnID; 
             else { alert("Burner upload failed"); location.reload(); return; }
         } else {
@@ -336,13 +332,15 @@ async function uploadToCatbox(dataBuffer, iv) {
     } catch(e) { return null; }
 }
 
-async function createBurnLink(payloadData) {
-    const url = "https://corsproxy.io/?https://pwpush.com/p.json";
-    const bodyData = { password: { payload: payloadData, expire_after_views: 1, expire_after_days: 1 } };
+async function uploadToBurner(mapID, password) {
+    const payload = JSON.stringify({ id: mapID, pass: password });
+    const blob = new Blob([payload], { type: 'text/plain' });
+    const formData = new FormData();
+    formData.append('file', blob);
     try {
-        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) });
+        const res = await fetch('https://file.io/?expires=1w', { method: 'POST', body: formData });
         const json = await res.json();
-        if(json.url_token) return json.url_token;
+        if(json.success) return json.key;
         return null;
     } catch(e) { return null; }
 }
@@ -355,8 +353,7 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 
 function checkCodeAndStart(val) {
     if(val.startsWith("BURN-")) {
-        const burnKey = val.split("BURN-")[1];
-        retrieveBurner(burnKey);
+        retrieveBurner(val.split("BURN-")[1]);
     } else if (val.includes("-")) {
         startReconstruction(val.split("-")[0], val.split("-")[1], false);
     } else {
@@ -374,47 +371,16 @@ function checkCodeAndStart(val) {
 async function retrieveBurner(key) {
     contentArea.style.display = 'none';
     processingView.style.display = 'flex';
-    updateProgress("Accessing Burner Link...", 20);
-    
+    updateProgress("Fetching Burner Key...", 20);
     try {
-        const url = `https://corsproxy.io/?https://pwpush.com/p/${key}.json`;
-        const res = await fetch(url);
-        if(!res.ok) throw new Error("Burned");
-        
-        const json = await res.json();
-        if(json.expired || json.deleted) throw new Error("Burned");
-        
-        const secret = json.payload; 
-        
-        if(secret.includes("-")) {
-            const parts = secret.split("-");
-            if(parts[1] === "LOCKED") {
-                passwordModal.classList.add('active');
-                unlockBtn.onclick = () => {
-                    const pass = unlockInput.value.trim();
-                    if(pass) {
-                        passwordModal.classList.remove('active');
-                        startReconstruction(parts[0], pass, true);
-                    }
-                };
-            } else {
-                startReconstruction(parts[0], parts[1], true);
-            }
-        } else {
-            // Fallback for old format
-            passwordModal.classList.add('active');
-            unlockBtn.onclick = () => {
-                const pass = unlockInput.value.trim();
-                if(pass) {
-                    passwordModal.classList.remove('active');
-                    startReconstruction(secret, pass, true);
-                }
-            };
-        }
-        
+        const res2 = await fetch(`https://file.io/${key}`);
+        if(!res2.ok) throw new Error();
+        const text = await res2.text();
+        const data = JSON.parse(text);
+        startReconstruction(data.id, data.pass);
     } catch(err) {
-        showToast("Link has already been destroyed.");
-        setTimeout(() => location.reload(), 2500);
+        showToast("Link expired or invalid");
+        setTimeout(() => location.reload(), 2000);
     }
 }
 
