@@ -1,6 +1,6 @@
 const modes = {
-    send: { title: "File Share", desc: "Securely send multiple files. Unlimited size. Permanent Storage.", badge: "SECURE STORAGE", color: "#6366f1", type: "upload" },
-    receive: { title: "Get File", desc: "Enter your secure code to retrieve files.", badge: "RETRIEVE", color: "#a855f7", type: "input" }
+    send: { title: "Share Anything", desc: "Upload files securely. Unlimited size.", badge: "SECURE CLOUD", color: "#6366f1", type: "upload" },
+    receive: { title: "Get Files", desc: "Enter your secure code.", badge: "RETRIEVE", color: "#a855f7", type: "input" }
 };
 
 const root = document.documentElement;
@@ -8,7 +8,6 @@ const contentArea = document.getElementById('content-area');
 const titleEl = document.getElementById('main-title');
 const descEl = document.getElementById('main-desc');
 const badgeEl = document.getElementById('mode-badge');
-const dockItems = document.querySelectorAll('.dock-item');
 const uploadUI = document.getElementById('upload-ui');
 const transferUI = document.getElementById('transfer-ui');
 const fileInput = document.getElementById('file-input');
@@ -111,7 +110,7 @@ async function checkPing() {
 
 function switchInputMode(mode) {
     document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
+    
     if(mode === 'file') {
         document.getElementById('tab-file').classList.add('active');
         document.getElementById('file-mode-view').style.display = 'block';
@@ -131,7 +130,11 @@ function setMainMode(modeKey) {
     if(modeKey === 'send') document.getElementById('dock-send').classList.add('active');
     else document.getElementById('dock-receive').classList.add('active');
 
-    function resetAllViews() {
+    updateTheme(modeKey);
+    resetAllViews();
+}
+
+function resetAllViews() {
     processingView.style.display = 'none';
     resultView.style.display = 'none';
     downloadView.style.display = 'none';
@@ -170,16 +173,12 @@ function setMainMode(modeKey) {
 
 function updateTheme(modeKey) {
     const data = modes[modeKey];
-    
     titleEl.textContent = data.title;
     descEl.textContent = data.desc;
     badgeEl.textContent = data.badge;
     root.style.setProperty('--primary', data.color);
-
     contentArea.style.opacity = '0';
-    setTimeout(() => {
-        contentArea.style.opacity = '1';
-    }, 150);
+    setTimeout(() => { contentArea.style.opacity = '1'; }, 150);
 }
 
 fileInput.addEventListener('change', (e) => {
@@ -594,4 +593,3 @@ function animate() {
     requestAnimationFrame(animate);
 }
 animate();
-
