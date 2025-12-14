@@ -279,33 +279,40 @@ async function startSlicingSequence(file, name, type) {
     let password = document.getElementById('custom-password').value.trim();
     let hasPassword = false;
     if(password) hasPassword = true;
-    else password = generateRandomString(6);
+    else password = generateRandomString(6); 
     
     const derivedKey = await deriveKeyFromPassword(password);
     const mapIV = window.crypto.getRandomValues(new Uint8Array(12));
     const mapEncrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: mapIV }, derivedKey, new TextEncoder().encode(JSON.stringify(masterMap)));
     
-    const finalMapID = await uploadToCatbox(mapEncrypted, mapIV);
+    // UPLOAD TO CATBOX (PERMANENT) FOR STANDARD MODE
+    // OR FILE.IO (BURNER) FOR BURN MODE
     
-    if(finalMapID) {
-        const cleanID = finalMapID.split('.')[0];
-        let finalCode = "";
-        
-        if(document.getElementById('burn-toggle').checked) {
-            chunkStatus.innerText = "Setting up Self-Destruct...";
-            const burnID = await uploadToBurner(cleanID, password);
-            if(burnID) finalCode = "BURN-" + burnID; 
-            else finalCode = `${cleanID}-${password}`; 
-        } else {
-            if (hasPassword) {
-                finalCode = `${cleanID}`;
+    let finalCode = "";
+    
+    if(document.getElementById('burn-toggle').checked) {
+        // BURN MODE: Upload Encrypted Map to File.io directly
+        // Map ID becomes the File.io Key
+        chunkStatus.innerText = "Setting up Burner...";
+        const burnID = await uploadToBurnerBlob(mapEncrypted, mapIV);
+        if(burnID) finalCode = "BURN-" + burnID + "-" + password; 
+        else { alert("Burner upload failed"); location.reload(); return; }
+    } else {
+        // STANDARD MODE: Upload Encrypted Map to Catbox
+        const finalMapID = await uploadToCatbox(mapEncrypted, mapIV);
+        if(finalMapID) {
+            const cleanID = finalMapID.split('.')[0];
+            if(hasPassword) {
+                finalCode = `${cleanID}`; // Just ID, user must know pass
                 document.getElementById('password-warning').style.display = 'block';
             } else {
                 finalCode = `${cleanID}-${password}`;
                 document.getElementById('password-warning').style.display = 'none';
             }
         }
-        
+    }
+    
+    if(finalCode) {
         saveHistory(name, finalCode);
         updateProgress("Done!", 100);
         fireConfetti();
@@ -332,9 +339,8 @@ async function uploadToCatbox(dataBuffer, iv) {
     } catch(e) { return null; }
 }
 
-async function uploadToBurner(mapID, password) {
-    const payload = JSON.stringify({ id: mapID, pass: password });
-    const blob = new Blob([payload], { type: 'text/plain' });
+async function uploadToBurnerBlob(dataBuffer, iv) {
+    const blob = new Blob([iv, dataBuffer], { type: 'application/octet-stream' });
     const formData = new FormData();
     formData.append('file', blob);
     try {
@@ -353,39 +359,25 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 
 function checkCodeAndStart(val) {
     if(val.startsWith("BURN-")) {
-        retrieveBurner(val.split("BURN-")[1]);
+        // Format: BURN-KEY-PASS
+        const parts = val.split("-");
+        if(parts.length === 3) startReconstruction(parts[1], parts[2], true);
+        else alert("Invalid Burn Code");
     } else if (val.includes("-")) {
-        startReconstruction(val.split("-")[0], val.split("-")[1]);
+        startReconstruction(val.split("-")[0], val.split("-")[1], false);
     } else {
-        // Assume password protected (No key in code)
         passwordModal.classList.add('active');
         unlockBtn.onclick = () => {
             const pass = unlockInput.value.trim();
             if(pass) {
                 passwordModal.classList.remove('active');
-                startReconstruction(val, pass);
+                startReconstruction(val, pass, false);
             }
         };
     }
 }
 
-async function retrieveBurner(key) {
-    contentArea.style.display = 'none';
-    processingView.style.display = 'flex';
-    updateProgress("Fetching Burner Key...", 20);
-    try {
-        const res2 = await fetch(`https://file.io/${key}`);
-        if(!res2.ok) throw new Error();
-        const text = await res2.text();
-        const data = JSON.parse(text);
-        startReconstruction(data.id, data.pass);
-    } catch(err) {
-        showToast("Link expired or invalid");
-        setTimeout(() => location.reload(), 2000);
-    }
-}
-
-async function startReconstruction(mapID, password) {
+async function startReconstruction(mapID, password, isBurn) {
     contentArea.style.display = 'none';
     processingView.style.display = 'flex';
     updateProgress("Locating Map...", 10);
@@ -396,9 +388,16 @@ async function startReconstruction(mapID, password) {
 
     try {
         const derivedKey = await deriveKeyFromPassword(password);
-        let mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}`);
-        if(!mapRes.ok) mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}.bin`);
-        if(!mapRes.ok) throw new Error("Map not found.");
+        let mapRes;
+        
+        if(isBurn) {
+            mapRes = await fetch(`https://file.io/${mapID}`);
+        } else {
+            mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}`);
+            if(!mapRes.ok) mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}.bin`);
+        }
+        
+        if(!mapRes.ok) throw new Error("Map not found or burned.");
         
         const mapBuffer = await mapRes.arrayBuffer();
         const iv = mapBuffer.slice(0, 12), data = mapBuffer.slice(12);
@@ -439,7 +438,7 @@ async function startReconstruction(mapID, password) {
         });
 
     } catch (e) {
-        showToast("Decryption failed. Wrong password?");
+        showToast("Decryption failed or Link Burned.");
         setTimeout(() => location.reload(), 2000);
     }
 }
