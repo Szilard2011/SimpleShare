@@ -23,7 +23,7 @@ const pingDisplay = document.getElementById('ping-display');
 const inputModeTabs = document.getElementById('input-mode-tabs');
 
 let currentMode = 'send';
-const CHUNK_SIZE = 190 * 1024 * 1024; 
+const CHUNK_SIZE = 45 * 1024 * 1024; 
 let wakeLock = null;
 let soundContext = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -38,6 +38,9 @@ const themeBtn = document.getElementById('theme-btn');
 const pasteBtn = document.getElementById('paste-btn');
 const nativeShareBtn = document.getElementById('native-share-btn');
 const zenModeBtn = document.getElementById('zen-mode-btn');
+const passwordModal = document.getElementById('password-modal');
+const unlockBtn = document.getElementById('unlock-btn');
+const unlockInput = document.getElementById('unlock-password');
 
 aboutBtn.onclick = () => aboutModal.classList.add('active');
 closeAbout.onclick = () => aboutModal.classList.remove('active');
@@ -82,13 +85,15 @@ document.getElementById('send-text-btn').onclick = () => {
     startSlicingSequence(blob, "Secret_Note.txt", "text/plain");
 };
 
+function closePasswordModal() { passwordModal.classList.remove('active'); }
+
 window.onload = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const magicCode = urlParams.get('code');
     if(magicCode) {
         dockItems[1].click(); 
         document.getElementById('receive-code').value = magicCode;
-        setTimeout(() => { startReconstruction(magicCode); }, 500);
+        setTimeout(() => { checkCodeAndStart(magicCode); }, 500);
     }
     checkPing();
     setInterval(checkPing, 10000);
@@ -134,15 +139,11 @@ function resetAllViews() {
     processingView.style.display = 'none';
     resultView.style.display = 'none';
     downloadView.style.display = 'none';
-    
     contentArea.style.display = 'flex';
     contentArea.style.opacity = '1';
-    
     fileInput.value = '';
     textInput.value = '';
     document.getElementById('receive-code').value = '';
-    document.getElementById('password-prompt').style.display = 'none';
-    document.getElementById('decrypt-password').value = '';
     document.querySelector('.container').classList.remove('zen');
 
     if (currentMode === 'send') {
@@ -276,7 +277,9 @@ async function startSlicingSequence(file, name, type) {
     const masterMap = { n: name, t: type, s: file.size, k: exportedKey, c: atomIDs, z: (blobToProcess.size !== file.size) };
     
     let password = document.getElementById('custom-password').value.trim();
-    if(!password) password = generateRandomString(6); 
+    let hasPassword = false;
+    if(password) hasPassword = true;
+    else password = generateRandomString(6);
     
     const derivedKey = await deriveKeyFromPassword(password);
     const mapIV = window.crypto.getRandomValues(new Uint8Array(12));
@@ -294,10 +297,12 @@ async function startSlicingSequence(file, name, type) {
             if(burnID) finalCode = "BURN-" + burnID; 
             else finalCode = `${cleanID}-${password}`; 
         } else {
-            if (document.getElementById('custom-password').value.trim()) {
-                finalCode = `${cleanID}-${password}`;
+            if (hasPassword) {
+                finalCode = `${cleanID}`;
+                document.getElementById('password-warning').style.display = 'block';
             } else {
                 finalCode = `${cleanID}-${password}`;
+                document.getElementById('password-warning').style.display = 'none';
             }
         }
         
@@ -343,15 +348,26 @@ async function uploadToBurner(mapID, password) {
 document.getElementById('connect-btn').addEventListener('click', () => {
     let val = document.getElementById('receive-code').value.trim();
     if(val.includes('code=')) val = val.split('code=')[1];
-    
+    checkCodeAndStart(val);
+});
+
+function checkCodeAndStart(val) {
     if(val.startsWith("BURN-")) {
         retrieveBurner(val.split("BURN-")[1]);
     } else if (val.includes("-")) {
         startReconstruction(val.split("-")[0], val.split("-")[1]);
     } else {
-        showToast("Invalid code format");
+        // Assume password protected (No key in code)
+        passwordModal.classList.add('active');
+        unlockBtn.onclick = () => {
+            const pass = unlockInput.value.trim();
+            if(pass) {
+                passwordModal.classList.remove('active');
+                startReconstruction(val, pass);
+            }
+        };
     }
-});
+}
 
 async function retrieveBurner(key) {
     contentArea.style.display = 'none';
