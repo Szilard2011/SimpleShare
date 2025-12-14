@@ -1,6 +1,6 @@
 const modes = {
-    send: { title: "Share Anything", desc: "Upload files securely. Unlimited size.", badge: "SECURE CLOUD", color: "#6366f1", type: "upload" },
-    receive: { title: "Get Files", desc: "Enter your secure code.", badge: "RETRIEVE", color: "#a855f7", type: "input" }
+    send: { title: "File Share", desc: "Securely send multiple files. Unlimited size. Permanent Storage.", badge: "SECURE STORAGE", color: "#6366f1", type: "upload" },
+    receive: { title: "Get File", desc: "Enter your secure code to retrieve files.", badge: "RETRIEVE", color: "#a855f7", type: "input" }
 };
 
 const root = document.documentElement;
@@ -22,6 +22,7 @@ const pingDisplay = document.getElementById('ping-display');
 const inputModeTabs = document.getElementById('input-mode-tabs');
 
 let currentMode = 'send';
+let uploadMode = 'file'; 
 const CHUNK_SIZE = 45 * 1024 * 1024; 
 let wakeLock = null;
 let soundContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -109,6 +110,7 @@ async function checkPing() {
 }
 
 function switchInputMode(mode) {
+    uploadMode = mode;
     document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
     
     if(mode === 'file') {
@@ -138,10 +140,8 @@ function resetAllViews() {
     processingView.style.display = 'none';
     resultView.style.display = 'none';
     downloadView.style.display = 'none';
-    
     contentArea.style.display = 'flex';
     contentArea.style.opacity = '1';
-    
     fileInput.value = '';
     textInput.value = '';
     document.getElementById('receive-code').value = '';
@@ -150,21 +150,9 @@ function resetAllViews() {
     document.querySelector('.container').classList.remove('zen');
 
     if (currentMode === 'send') {
-        uploadUI.style.display = 'block';
-        transferUI.style.display = 'none';
         inputModeTabs.style.display = 'flex';
-        
-        const activeTab = document.querySelector('.mode-tab.active');
-        if(activeTab && activeTab.id === 'tab-file') {
-            document.getElementById('file-mode-view').style.display = 'block';
-            document.getElementById('text-mode-view').style.display = 'none';
-        } else {
-            document.getElementById('file-mode-view').style.display = 'none';
-            document.getElementById('text-mode-view').style.display = 'flex';
-        }
+        switchInputMode(uploadMode);
     } else {
-        uploadUI.style.display = 'none';
-        transferUI.style.display = 'block';
         inputModeTabs.style.display = 'none';
         document.getElementById('file-mode-view').style.display = 'none';
         document.getElementById('text-mode-view').style.display = 'none';
@@ -173,12 +161,24 @@ function resetAllViews() {
 
 function updateTheme(modeKey) {
     const data = modes[modeKey];
-    titleEl.textContent = data.title;
-    descEl.textContent = data.desc;
-    badgeEl.textContent = data.badge;
-    root.style.setProperty('--primary', data.color);
     contentArea.style.opacity = '0';
-    setTimeout(() => { contentArea.style.opacity = '1'; }, 150);
+    setTimeout(() => {
+        titleEl.textContent = data.title;
+        descEl.textContent = data.desc;
+        badgeEl.textContent = data.badge;
+        root.style.setProperty('--primary', data.color);
+        
+        if(data.type === 'upload') {
+            uploadUI.style.display = 'block';
+            transferUI.style.display = 'none';
+            inputModeTabs.style.display = 'flex';
+        } else {
+            uploadUI.style.display = 'none';
+            transferUI.style.display = 'block';
+            inputModeTabs.style.display = 'none';
+        }
+        contentArea.style.opacity = '1';
+    }, 200);
 }
 
 fileInput.addEventListener('change', (e) => {
