@@ -34,9 +34,14 @@
         <div id="content-area" class="content-wrapper">
             
             <div class="mode-tabs" id="input-mode-tabs">
-                <button class="mode-tab active" id="tab-file" onclick="setUploadMode('file')">File</button>
-                <button class="mode-tab" id="tab-text" onclick="setUploadMode('text')">Text</button>
+                <button class="mode-tab active" id="tab-file" onclick="switchInputMode('file')">File</button>
+                <button class="mode-tab" id="tab-text" onclick="switchInputMode('text')">Text</button>
             </div>
+            
+            <h1 id="main-title">Secure Upload</h1>
+            <p id="main-desc">
+                Encrypt and share files permanently. Unlimited size.
+            </p>
             
             <div id="upload-ui">
                 <div id="file-mode-view">
@@ -160,11 +165,11 @@
             </div>
             <div class="modal-body">
                 <div class="info-block">
-                    <h3>🚀 High-Speed Matrix Engine</h3>
+                    <h3>🚀 High-Speed Engine</h3>
                     <p>Your file is split into encrypted chunks and uploaded simultaneously to maximize speed.</p>
                 </div>
                 <div class="info-block">
-                    <h3>🧠 Zero-Knowledge Architecture</h3>
+                    <h3>🧠 Zero-Knowledge</h3>
                     <p>Encryption keys are generated on your device. The code acts as both the map to find your data and the password to unlock it. No servers can see your data.</p>
                 </div>
             </div>
