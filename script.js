@@ -291,19 +291,12 @@ async function startSlicingSequence(file, name, type) {
         const cleanID = finalMapID.split('.')[0];
         let finalCode = "";
         
-        if(document.getElementById('burn-toggle').checked) {
-            chunkStatus.innerText = "Setting up Self-Destruct...";
-            const burnID = await uploadToBurner(cleanID, password);
-            if(burnID) finalCode = "BURN-" + burnID; 
-            else { alert("Burner upload failed"); location.reload(); return; }
+        if (hasPassword) {
+            finalCode = `${cleanID}`; 
+            document.getElementById('password-warning').style.display = 'block';
         } else {
-            if (hasPassword) {
-                finalCode = `${cleanID}`; 
-                document.getElementById('password-warning').style.display = 'block';
-            } else {
-                finalCode = `${cleanID}-${password}`;
-                document.getElementById('password-warning').style.display = 'none';
-            }
+            finalCode = `${cleanID}-${password}`;
+            document.getElementById('password-warning').style.display = 'none';
         }
         
         saveHistory(name, finalCode);
@@ -332,19 +325,6 @@ async function uploadToCatbox(dataBuffer, iv) {
     } catch(e) { return null; }
 }
 
-async function uploadToBurner(mapID, password) {
-    const payload = JSON.stringify({ id: mapID, pass: password });
-    const blob = new Blob([payload], { type: 'text/plain' });
-    const formData = new FormData();
-    formData.append('file', blob);
-    try {
-        const res = await fetch('https://file.io/?expires=1w', { method: 'POST', body: formData });
-        const json = await res.json();
-        if(json.success) return json.key;
-        return null;
-    } catch(e) { return null; }
-}
-
 document.getElementById('connect-btn').addEventListener('click', () => {
     let val = document.getElementById('receive-code').value.trim();
     if(val.includes('code=')) val = val.split('code=')[1];
@@ -352,39 +332,21 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 });
 
 function checkCodeAndStart(val) {
-    if(val.startsWith("BURN-")) {
-        retrieveBurner(val.split("BURN-")[1]);
-    } else if (val.includes("-")) {
-        startReconstruction(val.split("-")[0], val.split("-")[1], false);
+    if (val.includes("-")) {
+        startReconstruction(val.split("-")[0], val.split("-")[1]);
     } else {
         passwordModal.classList.add('active');
         unlockBtn.onclick = () => {
             const pass = unlockInput.value.trim();
             if(pass) {
                 passwordModal.classList.remove('active');
-                startReconstruction(val, pass, false);
+                startReconstruction(val, pass);
             }
         };
     }
 }
 
-async function retrieveBurner(key) {
-    contentArea.style.display = 'none';
-    processingView.style.display = 'flex';
-    updateProgress("Fetching Burner Key...", 20);
-    try {
-        const res2 = await fetch(`https://file.io/${key}`);
-        if(!res2.ok) throw new Error();
-        const text = await res2.text();
-        const data = JSON.parse(text);
-        startReconstruction(data.id, data.pass);
-    } catch(err) {
-        showToast("Link expired or invalid");
-        setTimeout(() => location.reload(), 2000);
-    }
-}
-
-async function startReconstruction(mapID, password, isBurn) {
+async function startReconstruction(mapID, password) {
     contentArea.style.display = 'none';
     processingView.style.display = 'flex';
     updateProgress("Locating Map...", 10);
