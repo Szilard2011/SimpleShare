@@ -133,14 +133,25 @@ function resetAllViews() {
     processingView.style.display = 'none';
     resultView.style.display = 'none';
     downloadView.style.display = 'none';
+    
     contentArea.style.display = 'flex';
     contentArea.style.opacity = '1';
+    
     fileInput.value = '';
     textInput.value = '';
     document.getElementById('receive-code').value = '';
     document.getElementById('password-prompt').style.display = 'none';
     document.getElementById('decrypt-password').value = '';
     document.querySelector('.container').classList.remove('zen');
+
+    const activeTab = document.querySelector('.mode-tab.active');
+    if(activeTab && activeTab.innerText === 'File') {
+        document.getElementById('file-mode-view').style.display = 'block';
+        document.getElementById('text-mode-view').style.display = 'none';
+    } else if (activeTab && activeTab.innerText === 'Text') {
+        document.getElementById('file-mode-view').style.display = 'none';
+        document.getElementById('text-mode-view').style.display = 'flex';
+    }
 }
 
 function updateTheme(modeKey) {
@@ -600,4 +611,5 @@ function animate() {
     requestAnimationFrame(animate);
 }
 animate();
+
 
