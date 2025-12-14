@@ -1,6 +1,6 @@
 const modes = {
-    send: { title: "Share Anything", desc: "Upload files securely. Unlimited size.", badge: "SECURE CLOUD", color: "#6366f1", type: "upload" },
-    receive: { title: "Get Files", desc: "Enter your secure code.", badge: "RETRIEVE", color: "#a855f7", type: "input" }
+    send: { title: "File Share", desc: "Securely send multiple files. Unlimited size. Permanent Storage.", badge: "SECURE STORAGE", color: "#6366f1", type: "upload" },
+    receive: { title: "Get File", desc: "Enter your secure code to retrieve files.", badge: "RETRIEVE", color: "#a855f7", type: "input" }
 };
 
 const root = document.documentElement;
@@ -23,7 +23,6 @@ const pingDisplay = document.getElementById('ping-display');
 const inputModeTabs = document.getElementById('input-mode-tabs');
 
 let currentMode = 'send';
-let uploadMode = 'file'; 
 const CHUNK_SIZE = 45 * 1024 * 1024; 
 let wakeLock = null;
 let soundContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -111,9 +110,8 @@ async function checkPing() {
 }
 
 function switchInputMode(mode) {
-    uploadMode = mode;
     document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
-    
+    event.target.classList.add('active');
     if(mode === 'file') {
         document.getElementById('tab-file').classList.add('active');
         document.getElementById('file-mode-view').style.display = 'block';
@@ -128,11 +126,9 @@ function switchInputMode(mode) {
 function setMainMode(modeKey) {
     if(currentMode === modeKey) return;
     currentMode = modeKey;
-    
     document.querySelectorAll('.dock-item').forEach(b => b.classList.remove('active'));
-    if(modeKey === 'send') document.querySelector('.dock-item:first-child').classList.add('active');
-    else document.querySelector('.dock-item:last-child').classList.add('active');
-
+    if(modeKey === 'send') document.getElementById('dock-send').classList.add('active');
+    else document.getElementById('dock-receive').classList.add('active');
     updateTheme(modeKey);
     resetAllViews();
 }
@@ -152,7 +148,9 @@ function resetAllViews() {
 
     if (currentMode === 'send') {
         inputModeTabs.style.display = 'flex';
-        switchInputMode(uploadMode);
+        const activeTab = document.querySelector('.mode-tab.active');
+        if(activeTab && activeTab.innerText === 'File') switchInputMode('file');
+        else switchInputMode('text');
     } else {
         inputModeTabs.style.display = 'none';
         document.getElementById('file-mode-view').style.display = 'none';
