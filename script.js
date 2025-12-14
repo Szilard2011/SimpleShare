@@ -126,19 +126,19 @@ function switchInputMode(mode) {
 function setMainMode(modeKey) {
     if(currentMode === modeKey) return;
     currentMode = modeKey;
+    
     document.querySelectorAll('.dock-item').forEach(b => b.classList.remove('active'));
     if(modeKey === 'send') document.getElementById('dock-send').classList.add('active');
     else document.getElementById('dock-receive').classList.add('active');
-    updateTheme(modeKey);
-    resetAllViews();
-}
 
-function resetAllViews() {
+    function resetAllViews() {
     processingView.style.display = 'none';
     resultView.style.display = 'none';
     downloadView.style.display = 'none';
+    
     contentArea.style.display = 'flex';
     contentArea.style.opacity = '1';
+    
     fileInput.value = '';
     textInput.value = '';
     document.getElementById('receive-code').value = '';
@@ -147,11 +147,21 @@ function resetAllViews() {
     document.querySelector('.container').classList.remove('zen');
 
     if (currentMode === 'send') {
+        uploadUI.style.display = 'block';
+        transferUI.style.display = 'none';
         inputModeTabs.style.display = 'flex';
+        
         const activeTab = document.querySelector('.mode-tab.active');
-        if(activeTab && activeTab.innerText === 'File') switchInputMode('file');
-        else switchInputMode('text');
+        if(activeTab && activeTab.id === 'tab-file') {
+            document.getElementById('file-mode-view').style.display = 'block';
+            document.getElementById('text-mode-view').style.display = 'none';
+        } else {
+            document.getElementById('file-mode-view').style.display = 'none';
+            document.getElementById('text-mode-view').style.display = 'flex';
+        }
     } else {
+        uploadUI.style.display = 'none';
+        transferUI.style.display = 'block';
         inputModeTabs.style.display = 'none';
         document.getElementById('file-mode-view').style.display = 'none';
         document.getElementById('text-mode-view').style.display = 'none';
@@ -160,24 +170,16 @@ function resetAllViews() {
 
 function updateTheme(modeKey) {
     const data = modes[modeKey];
+    
+    titleEl.textContent = data.title;
+    descEl.textContent = data.desc;
+    badgeEl.textContent = data.badge;
+    root.style.setProperty('--primary', data.color);
+
     contentArea.style.opacity = '0';
     setTimeout(() => {
-        titleEl.textContent = data.title;
-        descEl.textContent = data.desc;
-        badgeEl.textContent = data.badge;
-        root.style.setProperty('--primary', data.color);
-        
-        if(data.type === 'upload') {
-            uploadUI.style.display = 'block';
-            transferUI.style.display = 'none';
-            inputModeTabs.style.display = 'flex';
-        } else {
-            uploadUI.style.display = 'none';
-            transferUI.style.display = 'block';
-            inputModeTabs.style.display = 'none';
-        }
         contentArea.style.opacity = '1';
-    }, 200);
+    }, 150);
 }
 
 fileInput.addEventListener('change', (e) => {
@@ -592,3 +594,4 @@ function animate() {
     requestAnimationFrame(animate);
 }
 animate();
+
