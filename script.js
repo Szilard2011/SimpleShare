@@ -33,6 +33,17 @@ const progressFill = document.getElementById('progress-fill');
 let currentMode = 'send';
 const CHUNK_SIZE = 190 * 1024 * 1024; 
 
+// --- MODAL LOGIC ---
+const aboutBtn = document.getElementById('about-btn');
+const aboutModal = document.getElementById('about-modal');
+const closeAbout = document.getElementById('close-about');
+
+aboutBtn.onclick = () => aboutModal.classList.add('active');
+closeAbout.onclick = () => aboutModal.classList.remove('active');
+aboutModal.onclick = (e) => {
+    if(e.target === aboutModal) aboutModal.classList.remove('active');
+};
+
 window.onload = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const magicCode = urlParams.get('code');
@@ -288,29 +299,29 @@ async function advancedHeuristicScan(blob, filename) {
     let detections = [];
     let detectedType = "Unknown Binary";
 
-    if (magic.startsWith('4D5A')) { detectedType = "Windows Executable (EXE/DLL)"; risk += 5; detections.push("Executable Code Header"); }
-    else if (magic.startsWith('7F454C46')) { detectedType = "Linux Executable (ELF)"; risk += 4; detections.push("ELF Binary Header"); }
-    else if (magic.startsWith('25504446')) { detectedType = "PDF Document"; risk += 0; }
-    else if (magic.startsWith('504B0304')) { detectedType = "ZIP Archive"; risk += 1; }
+    if (magic.startsWith('4D5A')) { detectedType = "Windows Executable"; risk += 5; detections.push("Executable Header"); }
+    else if (magic.startsWith('7F454C46')) { detectedType = "Linux Executable"; risk += 4; detections.push("ELF Binary"); }
+    else if (magic.startsWith('25504446')) { detectedType = "PDF"; risk += 0; }
+    else if (magic.startsWith('504B0304')) { detectedType = "ZIP Archive"; risk += 1; } 
     else if (magic.startsWith('89504E47')) { detectedType = "PNG Image"; risk += 0; }
     else if (magic.startsWith('FFD8FF')) { detectedType = "JPG Image"; risk += 0; }
     else if (magic.startsWith('52617221')) { detectedType = "RAR Archive"; risk += 1; }
-    else if (magic.startsWith('D0CF11E0')) { detectedType = "Legacy Office (OLE)"; risk += 2; detections.push("Legacy Macro Container"); }
+    else if (magic.startsWith('D0CF11E0')) { detectedType = "Legacy Office"; risk += 2; detections.push("Legacy Macros"); }
 
     if (detectedType.includes("Executable") && ['jpg', 'png', 'txt', 'pdf', 'mp4'].includes(ext)) {
         risk += 5;
-        detections.push("CRITICAL: Extension Spoofing");
+        detections.push("Extension Spoofing");
     }
 
     if (filename.match(/\.(txt|doc|pdf|jpg)\.(exe|scr|bat|com|js)$/i)) {
         risk += 5;
-        detections.push("Double Extension Trick");
+        detections.push("Double Extension");
     }
 
     if (['bat', 'cmd', 'ps1', 'vbs', 'sh', 'js'].includes(ext)) {
         risk += 4;
         detectedType = "System Script";
-        detections.push("System Automation Script");
+        detections.push("System Script");
     }
 
     const entropy = await calculateEntropy(blob.slice(0, 1024));
@@ -324,7 +335,7 @@ async function advancedHeuristicScan(blob, filename) {
     } else if (risk >= 1 || entropy > 7.8) {
         safetyLevel = "warning";
         message = "Caution advised.";
-        if (entropy > 7.8) message += " High Entropy (Packed/Encrypted).";
+        if (entropy > 7.8) message += " High Entropy.";
     }
 
     return {
@@ -342,7 +353,6 @@ async function calculateEntropy(blob) {
     const data = new Uint8Array(buffer);
     const frequencies = new Array(256).fill(0);
     for (let i = 0; i < data.length; i++) frequencies[data[i]]++;
-    
     let entropy = 0;
     for (let i = 0; i < 256; i++) {
         if (frequencies[i] > 0) {
