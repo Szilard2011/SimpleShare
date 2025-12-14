@@ -285,25 +285,19 @@ async function startSlicingSequence(file, name, type) {
     const mapIV = window.crypto.getRandomValues(new Uint8Array(12));
     const mapEncrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: mapIV }, derivedKey, new TextEncoder().encode(JSON.stringify(masterMap)));
     
-    // UPLOAD TO CATBOX (PERMANENT) FOR STANDARD MODE
-    // OR FILE.IO (BURNER) FOR BURN MODE
-    
     let finalCode = "";
     
     if(document.getElementById('burn-toggle').checked) {
-        // BURN MODE: Upload Encrypted Map to File.io directly
-        // Map ID becomes the File.io Key
-        chunkStatus.innerText = "Setting up Burner...";
+        chunkStatus.innerText = "Setting up Self-Destruct...";
         const burnID = await uploadToBurnerBlob(mapEncrypted, mapIV);
         if(burnID) finalCode = "BURN-" + burnID + "-" + password; 
         else { alert("Burner upload failed"); location.reload(); return; }
     } else {
-        // STANDARD MODE: Upload Encrypted Map to Catbox
         const finalMapID = await uploadToCatbox(mapEncrypted, mapIV);
         if(finalMapID) {
             const cleanID = finalMapID.split('.')[0];
             if(hasPassword) {
-                finalCode = `${cleanID}`; // Just ID, user must know pass
+                finalCode = `${cleanID}`; 
                 document.getElementById('password-warning').style.display = 'block';
             } else {
                 finalCode = `${cleanID}-${password}`;
@@ -344,7 +338,7 @@ async function uploadToBurnerBlob(dataBuffer, iv) {
     const formData = new FormData();
     formData.append('file', blob);
     try {
-        const res = await fetch('https://file.io/?expires=1w', { method: 'POST', body: formData });
+        const res = await fetch('https://corsproxy.io/?https://file.io/?expires=1w', { method: 'POST', body: formData });
         const json = await res.json();
         if(json.success) return json.key;
         return null;
@@ -359,7 +353,6 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 
 function checkCodeAndStart(val) {
     if(val.startsWith("BURN-")) {
-        // Format: BURN-KEY-PASS
         const parts = val.split("-");
         if(parts.length === 3) startReconstruction(parts[1], parts[2], true);
         else alert("Invalid Burn Code");
@@ -391,7 +384,7 @@ async function startReconstruction(mapID, password, isBurn) {
         let mapRes;
         
         if(isBurn) {
-            mapRes = await fetch(`https://file.io/${mapID}`);
+            mapRes = await fetch(`https://corsproxy.io/?https://file.io/${mapID}`);
         } else {
             mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}`);
             if(!mapRes.ok) mapRes = await fetch(`https://corsproxy.io/?https://files.catbox.moe/${mapID}.bin`);
