@@ -144,6 +144,8 @@ function resetAllViews() {
     fileInput.value = '';
     textInput.value = '';
     document.getElementById('receive-code').value = '';
+    document.getElementById('password-prompt').style.display = 'none';
+    document.getElementById('decrypt-password').value = '';
     document.querySelector('.container').classList.remove('zen');
 
     if (currentMode === 'send') {
