@@ -155,9 +155,11 @@ function updateTheme(modeKey) {
         if(data.type === 'upload') {
             uploadUI.style.display = 'block';
             transferUI.style.display = 'none';
+            document.getElementById('input-mode-tabs').style.display = 'flex';
         } else {
             uploadUI.style.display = 'none';
             transferUI.style.display = 'block';
+            document.getElementById('input-mode-tabs').style.display = 'none';
         }
         contentArea.style.opacity = '1';
     }, 200);
@@ -598,3 +600,4 @@ function animate() {
     requestAnimationFrame(animate);
 }
 animate();
+
