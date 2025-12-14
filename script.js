@@ -20,6 +20,7 @@ const chunkStatus = document.getElementById('chunk-details');
 const progressFill = document.getElementById('progress-fill');
 const speedBadge = document.getElementById('speedometer');
 const pingDisplay = document.getElementById('ping-display');
+const inputModeTabs = document.getElementById('input-mode-tabs');
 
 let currentMode = 'send';
 const CHUNK_SIZE = 190 * 1024 * 1024; 
@@ -144,13 +145,20 @@ function resetAllViews() {
     document.getElementById('decrypt-password').value = '';
     document.querySelector('.container').classList.remove('zen');
 
-    const activeTab = document.querySelector('.mode-tab.active');
-    if(activeTab && activeTab.innerText === 'File') {
-        document.getElementById('file-mode-view').style.display = 'block';
-        document.getElementById('text-mode-view').style.display = 'none';
-    } else if (activeTab && activeTab.innerText === 'Text') {
+    if (currentMode === 'send') {
+        inputModeTabs.style.display = 'flex';
+        const activeTab = document.querySelector('.mode-tab.active');
+        if(activeTab && activeTab.innerText === 'File') {
+            document.getElementById('file-mode-view').style.display = 'block';
+            document.getElementById('text-mode-view').style.display = 'none';
+        } else {
+            document.getElementById('file-mode-view').style.display = 'none';
+            document.getElementById('text-mode-view').style.display = 'flex';
+        }
+    } else {
+        inputModeTabs.style.display = 'none';
         document.getElementById('file-mode-view').style.display = 'none';
-        document.getElementById('text-mode-view').style.display = 'flex';
+        document.getElementById('text-mode-view').style.display = 'none';
     }
 }
 
@@ -166,11 +174,11 @@ function updateTheme(modeKey) {
         if(data.type === 'upload') {
             uploadUI.style.display = 'block';
             transferUI.style.display = 'none';
-            document.getElementById('input-mode-tabs').style.display = 'flex';
+            inputModeTabs.style.display = 'flex';
         } else {
             uploadUI.style.display = 'none';
             transferUI.style.display = 'block';
-            document.getElementById('input-mode-tabs').style.display = 'none';
+            inputModeTabs.style.display = 'none';
         }
         contentArea.style.opacity = '1';
     }, 200);
@@ -481,6 +489,7 @@ function updateSpeed(bytes, startTime) {
 function showResult(code) {
     processingView.style.display = 'none';
     resultView.style.display = 'block';
+    inputModeTabs.style.display = 'none'; 
     document.getElementById('final-code').innerText = code;
     const link = window.location.href.split('?')[0] + "?code=" + code;
     document.getElementById('final-link').innerText = link;
@@ -611,5 +620,3 @@ function animate() {
     requestAnimationFrame(animate);
 }
 animate();
-
-
