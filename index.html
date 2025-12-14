@@ -60,15 +60,22 @@
         </div>
 
         <div id="processing-view" class="processing-wrapper">
-            <div class="loader">
-                <svg class="circular" viewBox="25 25 50 50">
-                    <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="4" stroke-miterlimit="10"/>
-                </svg>
+            <div class="holo-container">
+                <div class="holo-ring outer"></div>
+                <div class="holo-ring inner"></div>
+                <div class="holo-core"></div>
+                <div class="holo-particles">
+                    <span></span><span></span><span></span><span></span>
+                </div>
             </div>
-            <h3 id="status-message">Starting up...</h3>
-            <p id="chunk-details" class="sub-status">Preparing encryption engine...</p>
-            <div class="progress-bar-track">
-                <div class="progress-bar-fill" id="progress-fill"></div>
+            
+            <h3 id="status-message" class="glow-text">Initializing...</h3>
+            <p id="chunk-details" class="sub-status">Wait for a moment...</p>
+            
+            <div class="cyber-progress-track">
+                <div class="cyber-progress-bar" id="progress-fill">
+                    <div class="cyber-glare"></div>
+                </div>
             </div>
         </div>
 
@@ -178,4 +185,5 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
