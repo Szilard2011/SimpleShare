@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="icon" type="image/png" href="favicon.png">
+    <link rel="icon" type="image/png" href="favicon.png">
     <meta name="google-site-verification" content="l0FBsyq23xxu-Uc5-Jhodl-1G1k3dYTuhU3dgNepwwI" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,11 +17,14 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://szilard2011.github.io/SimpleShare/">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
     <div class="gradient-bg"></div>
     <canvas id="organic-canvas"></canvas>
+    <canvas id="confetti-canvas"></canvas>
 
     <nav class="top-bar">
         <div class="brand">
@@ -29,10 +32,9 @@
             <span>SimpleShare</span>
         </div>
         <div class="nav-right">
-            <div class="system-status">
-                <span id="hardware-label">Security</span>
-                <div class="status-indicator online"></div>
-            </div>
+            <div class="ping-badge" id="ping-display">99ms</div>
+            <button id="theme-btn" class="nav-btn">☀</button>
+            <button id="history-btn" class="nav-btn">History</button>
             <button id="about-btn" class="nav-btn">About</button>
         </div>
     </nav>
@@ -40,47 +42,70 @@
     <main class="container">
         
         <div id="content-area" class="content-wrapper">
-            <div class="mode-badge" id="mode-badge">PERMANENT STORAGE</div>
-            <h1 id="main-title">Share Anything</h1>
+            <div class="mode-tabs">
+                <button class="mode-tab active" onclick="switchInputMode('file')">File</button>
+                <button class="mode-tab" onclick="switchInputMode('text')">Text</button>
+            </div>
+
+            <h1 id="main-title">Neural Upload</h1>
             <p id="main-desc">
-                Upload files of any size. We compress, encrypt, and store them permanently for you.
+                Securely send multiple files. Unlimited size. Permanent or Self-Destruct.
             </p>
             
             <div id="upload-ui">
-                <div class="drop-zone-indicator" onclick="document.getElementById('file-input').click()">
-                    <input type="file" id="file-input" style="display: none;">
-                    <span class="icon-large">📂</span>
-                    <span class="text-main">Click to browse</span>
-                    <span class="text-sub">or drag and drop your file here</span>
+                <div id="file-mode-view">
+                    <div class="drop-zone-indicator" onclick="document.getElementById('file-input').click()">
+                        <input type="file" id="file-input" multiple style="display: none;">
+                        <span class="icon-large">📂</span>
+                        <span class="text-main">Click to select files</span>
+                        <span class="text-sub">or drag folders here</span>
+                    </div>
+                </div>
+
+                <div id="text-mode-view" style="display:none;">
+                    <textarea id="text-input" class="text-area-input" placeholder="Type your secret note here..."></textarea>
+                    <button class="primary-action-btn" id="send-text-btn">Encrypt Note</button>
+                </div>
+
+                <div class="options-panel">
+                    <div class="option-row">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="burn-toggle">
+                            <span class="checkmark"></span>
+                            Self-Destruct (Burn Key after download)
+                        </label>
+                    </div>
+                    <div class="option-row">
+                        <input type="password" id="custom-password" class="option-input" placeholder="Optional Password protection">
+                    </div>
                 </div>
             </div>
 
             <div id="transfer-ui" style="display: none;">
                 <div class="input-wrapper">
-                    <input type="text" id="receive-code" class="code-input" placeholder="Paste your code or link..." autocomplete="off">
+                    <input type="text" id="receive-code" class="code-input" placeholder="Paste Code / Link" autocomplete="off">
+                    <button id="paste-btn" class="icon-btn">📋</button>
                     <button id="connect-btn" class="connect-btn">→</button>
+                </div>
+                <div id="password-prompt" style="display:none; margin-top: 15px;">
+                    <input type="password" id="decrypt-password" class="code-input" placeholder="Enter File Password">
                 </div>
             </div>
         </div>
 
         <div id="processing-view" class="processing-wrapper">
-            <div class="holo-container">
-                <div class="holo-ring outer"></div>
-                <div class="holo-ring inner"></div>
-                <div class="holo-core"></div>
-                <div class="holo-particles">
-                    <span></span><span></span><span></span><span></span>
-                </div>
+            <div class="loader">
+                <svg class="circular" viewBox="25 25 50 50">
+                    <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="4" stroke-miterlimit="10"/>
+                </svg>
             </div>
-            
-            <h3 id="status-message" class="glow-text">Initializing...</h3>
-            <p id="chunk-details" class="sub-status">Wait for a moment...</p>
-            
-            <div class="cyber-progress-track">
-                <div class="cyber-progress-bar" id="progress-fill">
-                    <div class="cyber-glare"></div>
-                </div>
+            <h3 id="status-message">Starting...</h3>
+            <p id="chunk-details" class="sub-status">Initializing...</p>
+            <div class="speed-badge" id="speedometer">0 MB/s</div>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progress-fill"></div>
             </div>
+            <button class="text-btn" id="zen-mode-btn">Zen Mode</button>
         </div>
 
         <div id="result-view" class="result-wrapper">
@@ -90,6 +115,7 @@
             <div class="toggle-container">
                 <button class="toggle-btn active" id="btn-show-code" onclick="switchResultMode('code')">Code</button>
                 <button class="toggle-btn" id="btn-show-link" onclick="switchResultMode('link')">Link</button>
+                <button class="toggle-btn" id="btn-show-qr" onclick="switchResultMode('qr')">QR</button>
             </div>
 
             <div id="view-code" class="result-pane">
@@ -104,46 +130,36 @@
                     <span id="final-link">...</span>
                     <span class="copy-hint">TAP TO COPY</span>
                 </div>
+                <button class="action-btn" id="native-share-btn">SHARE APP</button>
             </div>
 
-            <button class="reset-main" onclick="location.reload()">Send Another File</button>
+            <div id="view-qr" class="result-pane" style="display: none;">
+                <div id="qrcode-container"></div>
+                <p class="instruction">Scan to download on mobile</p>
+            </div>
+
+            <button class="reset-main" onclick="location.reload()">Send More</button>
         </div>
 
         <div id="download-view" class="result-wrapper" style="display:none;">
-            
             <div class="file-card">
-                <div class="file-icon-display">📄</div>
+                <div class="file-icon-display" id="file-type-icon">📦</div>
                 <div class="file-details">
-                    <h3 id="dl-filename">file.txt</h3>
+                    <h3 id="dl-filename">archive.zip</h3>
                     <span id="dl-filesize">0 MB</span>
                 </div>
             </div>
-
-            <div class="security-card" id="scan-container">
-                <div class="scan-header">
-                    <span class="icon" id="scan-icon">🛡️</span>
-                    <span class="title" id="scan-title">Deep Analysis</span>
-                </div>
-                <div class="scan-body">
-                    <p id="scan-desc">Verifying binary integrity...</p>
-                    <div class="scan-metrics" id="scan-metrics" style="display:none;">
-                        <div class="metric">
-                            <span class="label">Entropy</span>
-                            <span class="value" id="metric-entropy">0.0</span>
-                        </div>
-                        <div class="metric">
-                            <span class="label">Type</span>
-                            <span class="value" id="metric-type">UNKNOWN</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="security-badge" id="scan-container">
+                <span class="icon" id="scan-icon">🛡️</span>
+                <span class="text" id="scan-desc">Verifying...</span>
             </div>
-
-            <button id="final-download-btn" class="primary-action-btn">Save to Device</button>
+            <button id="final-download-btn" class="primary-action-btn">Save File</button>
             <button class="text-btn" onclick="location.reload()">Cancel</button>
         </div>
 
     </main>
+
+    <div id="toast-container"></div>
 
     <div id="about-modal" class="modal-overlay">
         <div class="modal-content">
@@ -156,40 +172,34 @@
                     <h3>🚀 Why is uploading slow?</h3>
                     <p>Unlike normal websites, we don't just "upload" your file. Your browser is performing military-grade <strong>AES-256 encryption</strong> and <strong>GZIP compression</strong> in real-time. Then, it slices your file into pieces and sends them through a secure anonymous proxy to ensure no logs are kept. Security takes CPU power and time.</p>
                 </div>
-                
                 <div class="info-block">
                     <h3>🧠 How does the technology work?</h3>
-                    <p>This is a <strong>Serverless Architecture</strong>. Your file is encrypted on your device using a key that only you have. It is then stored on a decentralized public ledger. The 12-character code acts as both the map to find your data and the password to unlock it.</p>
-                </div>
-
-                <div class="info-block">
-                    <h3>🛡️ Is it truly secure?</h3>
-                    <p>Yes. Because the encryption happens <strong>Client-Side</strong> (on your computer), not even we can see what you are sending. If you lose the code, the file is mathematically impossible to recover.</p>
-                </div>
-
-                <div class="info-block">
-                    <h3>🦠 What is the Virus Scanner?</h3>
-                    <p>When you download a file, your browser inspects the binary headers (Magic Numbers) and entropy levels before saving it to your disk. It looks for hidden executable code inside images or documents.</p>
+                    <p>This is a <strong>Serverless Architecture</strong>. Your file is encrypted on your device using a key that only you have. It is then stored on a decentralized public ledger. The code acts as both the map to find your data and the password to unlock it.</p>
                 </div>
             </div>
         </div>
     </div>
 
+    <div id="history-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Local History</h2>
+                <button class="close-btn" id="close-history">×</button>
+            </div>
+            <div class="modal-body" id="history-list">
+                <p style="color: #94a3b8; text-align: center;">No recent uploads found.</p>
+            </div>
+            <button class="text-btn" id="clear-history" style="width:100%">Clear History</button>
+        </div>
+    </div>
+
     <div class="dock-container">
         <div class="dock">
-            <button class="dock-item active" data-mode="send" data-theme="green">
-                Upload
-            </button>
-            <button class="dock-item" data-mode="receive" data-theme="blue">
-                Download
-            </button>
+            <button class="dock-item active" data-mode="send" data-theme="green">Upload</button>
+            <button class="dock-item" data-mode="receive" data-theme="blue">Download</button>
         </div>
     </div>
 
     <script src="script.js"></script>
 </body>
 </html>
-
-
-
-
