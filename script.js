@@ -285,34 +285,26 @@ async function startSlicingSequence(file, name, type) {
     const mapIV = window.crypto.getRandomValues(new Uint8Array(12));
     const mapEncrypted = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: mapIV }, derivedKey, new TextEncoder().encode(JSON.stringify(masterMap)));
     
-    // UPLOAD MAP TO CATBOX (Always Permanent Storage for the Map Data itself)
     const finalMapID = await uploadToCatbox(mapEncrypted, mapIV);
     
     if(finalMapID) {
         const cleanID = finalMapID.split('.')[0];
         let finalCode = "";
         
-        // CHECK IF BURN MODE
         if(document.getElementById('burn-toggle').checked) {
-            chunkStatus.innerText = "Activating Self-Destruct...";
+            chunkStatus.innerText = "Setting up Self-Destruct...";
+            let payload = cleanID;
+            if(hasPassword) payload += "-LOCKED"; // Mark as locked
+            else payload += "-" + password; 
             
-            // For Burn Mode: We store the "MapID + Password" in a Burn-On-Read service
-            // The Code becomes the ID for the Burn-On-Read service
-            
-            const secretPayload = `${cleanID}-${password}`;
-            const burnID = await createBurnLink(secretPayload);
-            
-            if(burnID) finalCode = "BURN-" + burnID;
-            else { alert("Burn service error"); location.reload(); return; }
-            
+            const burnID = await createBurnLink(payload);
+            if(burnID) finalCode = "BURN-" + burnID; 
+            else { alert("Burner upload failed"); location.reload(); return; }
         } else {
-            // STANDARD MODE
             if (hasPassword) {
-                // If password set, Code = ID. User must communicate password separately.
                 finalCode = `${cleanID}`; 
                 document.getElementById('password-warning').style.display = 'block';
             } else {
-                // No password set, Code = ID-GeneratedPassword
                 finalCode = `${cleanID}-${password}`;
                 document.getElementById('password-warning').style.display = 'none';
             }
@@ -345,32 +337,14 @@ async function uploadToCatbox(dataBuffer, iv) {
 }
 
 async function createBurnLink(payloadData) {
-    // Using Password Pusher JSON API via Proxy
-    // 1 View, 1 Day expiration
     const url = "https://corsproxy.io/?https://pwpush.com/p.json";
-    
-    const bodyData = {
-        password: {
-            payload: payloadData,
-            expire_after_views: 1,
-            expire_after_days: 1
-        }
-    };
-
+    const bodyData = { password: { payload: payloadData, expire_after_views: 1, expire_after_days: 1 } };
     try {
-        const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(bodyData)
-        });
-        
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) });
         const json = await res.json();
-        // pwpush returns { url_token: "..." }
         if(json.url_token) return json.url_token;
         return null;
-    } catch(e) {
-        return null;
-    }
+    } catch(e) { return null; }
 }
 
 document.getElementById('connect-btn').addEventListener('click', () => {
@@ -384,10 +358,8 @@ function checkCodeAndStart(val) {
         const burnKey = val.split("BURN-")[1];
         retrieveBurner(burnKey);
     } else if (val.includes("-")) {
-        // ID-PASS (Standard Auto)
         startReconstruction(val.split("-")[0], val.split("-")[1], false);
     } else {
-        // ID ONLY (Password Protected)
         passwordModal.classList.add('active');
         unlockBtn.onclick = () => {
             const pass = unlockInput.value.trim();
@@ -404,23 +376,41 @@ async function retrieveBurner(key) {
     processingView.style.display = 'flex';
     updateProgress("Accessing Burner Link...", 20);
     
-    // Fetch from Password Pusher
     try {
         const url = `https://corsproxy.io/?https://pwpush.com/p/${key}.json`;
         const res = await fetch(url);
         if(!res.ok) throw new Error("Burned");
         
         const json = await res.json();
-        
-        // Check if expired/deleted
         if(json.expired || json.deleted) throw new Error("Burned");
         
-        const secret = json.payload; // This is "MapID-Password"
+        const secret = json.payload; 
         
-        const parts = secret.split("-");
-        if(parts.length !== 2) throw new Error("Corrupt");
-        
-        startReconstruction(parts[0], parts[1], true);
+        if(secret.includes("-")) {
+            const parts = secret.split("-");
+            if(parts[1] === "LOCKED") {
+                passwordModal.classList.add('active');
+                unlockBtn.onclick = () => {
+                    const pass = unlockInput.value.trim();
+                    if(pass) {
+                        passwordModal.classList.remove('active');
+                        startReconstruction(parts[0], pass, true);
+                    }
+                };
+            } else {
+                startReconstruction(parts[0], parts[1], true);
+            }
+        } else {
+            // Fallback for old format
+            passwordModal.classList.add('active');
+            unlockBtn.onclick = () => {
+                const pass = unlockInput.value.trim();
+                if(pass) {
+                    passwordModal.classList.remove('active');
+                    startReconstruction(secret, pass, true);
+                }
+            };
+        }
         
     } catch(err) {
         showToast("Link has already been destroyed.");
