@@ -8,6 +8,8 @@
     --border: rgba(255, 255, 255, 0.08);
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
 }
 
 :root.light-mode {
