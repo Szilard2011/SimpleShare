@@ -23,6 +23,7 @@ const pingDisplay = document.getElementById('ping-display');
 const inputModeTabs = document.getElementById('input-mode-tabs');
 
 let currentMode = 'send';
+let uploadMode = 'file'; 
 const CHUNK_SIZE = 45 * 1024 * 1024; 
 let wakeLock = null;
 let soundContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -91,7 +92,7 @@ window.onload = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const magicCode = urlParams.get('code');
     if(magicCode) {
-        dockItems[1].click(); 
+        setMainMode('receive');
         document.getElementById('receive-code').value = magicCode;
         setTimeout(() => { checkCodeAndStart(magicCode); }, 500);
     }
@@ -110,30 +111,31 @@ async function checkPing() {
 }
 
 function switchInputMode(mode) {
+    uploadMode = mode;
     document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
+    
     if(mode === 'file') {
+        document.getElementById('tab-file').classList.add('active');
         document.getElementById('file-mode-view').style.display = 'block';
         document.getElementById('text-mode-view').style.display = 'none';
     } else {
+        document.getElementById('tab-text').classList.add('active');
         document.getElementById('file-mode-view').style.display = 'none';
         document.getElementById('text-mode-view').style.display = 'flex';
     }
 }
 
-updateTheme('send');
+function setMainMode(modeKey) {
+    if(currentMode === modeKey) return;
+    currentMode = modeKey;
+    
+    document.querySelectorAll('.dock-item').forEach(b => b.classList.remove('active'));
+    if(modeKey === 'send') document.querySelector('.dock-item:first-child').classList.add('active');
+    else document.querySelector('.dock-item:last-child').classList.add('active');
 
-dockItems.forEach(item => {
-    item.addEventListener('click', () => {
-        const mode = item.dataset.mode;
-        if(mode === currentMode) return;
-        dockItems.forEach(b => b.classList.remove('active'));
-        item.classList.add('active');
-        currentMode = mode;
-        updateTheme(mode);
-        resetAllViews();
-    });
-});
+    updateTheme(modeKey);
+    resetAllViews();
+}
 
 function resetAllViews() {
     processingView.style.display = 'none';
@@ -150,14 +152,7 @@ function resetAllViews() {
 
     if (currentMode === 'send') {
         inputModeTabs.style.display = 'flex';
-        const activeTab = document.querySelector('.mode-tab.active');
-        if(activeTab && activeTab.innerText === 'File') {
-            document.getElementById('file-mode-view').style.display = 'block';
-            document.getElementById('text-mode-view').style.display = 'none';
-        } else {
-            document.getElementById('file-mode-view').style.display = 'none';
-            document.getElementById('text-mode-view').style.display = 'flex';
-        }
+        switchInputMode(uploadMode);
     } else {
         inputModeTabs.style.display = 'none';
         document.getElementById('file-mode-view').style.display = 'none';
