@@ -110,12 +110,6 @@ p { font-size: 1rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 
 .option-input { width: 100%; background: var(--card-bg); border: 1px solid var(--border); padding: 12px; border-radius: 12px; color: var(--text-main); font-size: 0.9rem; outline: none; }
 .option-input:focus { border-color: var(--primary); }
 
-.checkbox-container { display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
-.checkbox-container input { display: none; }
-.checkmark { width: 20px; height: 20px; border-radius: 6px; border: 1px solid var(--border); display: inline-block; position: relative; background: var(--card-bg); }
-.checkbox-container input:checked ~ .checkmark { background: var(--primary); border-color: var(--primary); }
-.checkbox-container input:checked ~ .checkmark:after { content: '✔'; position: absolute; font-size: 14px; color: white; left: 3px; top: -1px; }
-
 .input-wrapper { display: flex; gap: 8px; background: var(--card-bg); padding: 6px; border-radius: 50px; border: 1px solid var(--border); width: 100%; }
 .code-input { background: transparent; border: none; color: var(--text-main); padding: 12px 20px; font-size: 1rem; flex: 1; outline: none; }
 .icon-btn { background: transparent; border: none; cursor: pointer; font-size: 1.2rem; padding: 0 10px; color: var(--text-muted); transition: color 0.2s; }
