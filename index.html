@@ -50,7 +50,7 @@
             <div class="mode-badge" id="mode-badge">INFINITY MATRIX</div>
             <h1 id="main-title">Neural Upload</h1>
             <p id="main-desc">
-                Securely send multiple files. Unlimited size. Permanent or Self-Destruct.
+                Securely send multiple files. Unlimited size. Permanent Storage.
             </p>
             
             <div id="upload-ui">
@@ -70,13 +70,6 @@
 
                 <div class="options-panel">
                     <div class="option-row">
-                        <label class="checkbox-container">
-                            <input type="checkbox" id="burn-toggle">
-                            <span class="checkmark"></span>
-                            Self-Destruct (Link works only once)
-                        </label>
-                    </div>
-                    <div class="option-row">
                         <input type="password" id="custom-password" class="option-input" placeholder="Set Password (Optional)">
                     </div>
                 </div>
@@ -87,6 +80,9 @@
                     <input type="text" id="receive-code" class="code-input" placeholder="Paste Code / Link" autocomplete="off">
                     <button id="paste-btn" class="icon-btn">📋</button>
                     <button id="connect-btn" class="connect-btn">→</button>
+                </div>
+                <div id="password-prompt" style="display:none; margin-top: 15px;">
+                    <input type="password" id="decrypt-password" class="code-input" placeholder="Enter File Password">
                 </div>
             </div>
         </div>
@@ -160,7 +156,6 @@
 
     <div id="toast-container"></div>
 
-    <!-- PASS MODAL -->
     <div id="password-modal" class="modal-overlay">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
